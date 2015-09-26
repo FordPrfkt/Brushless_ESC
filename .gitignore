@@ -3,6 +3,9 @@
 *.ko
 *.obj
 *.elf
+*.eep
+*.lss
+*.d
 
 # Precompiled Headers
 *.gch
@@ -27,9 +30,11 @@
 *.i*86
 *.x86_64
 *.hex
+*.srec
 
 # Debug files
 *.dSYM/
+*.map
 
 #Gerber Files
 *.gbl
