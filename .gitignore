@@ -30,3 +30,18 @@
 
 # Debug files
 *.dSYM/
+
+#Gerber Files
+*.gbl
+*.gtl
+*.gbs
+*.gts
+*.gbo
+*.gto
+*.gml
+*.gms
+*.drl
+
+#Kicad Backup files
+*.bak
+*.kicad_pcb-bak
