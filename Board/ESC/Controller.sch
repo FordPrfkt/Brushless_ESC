@@ -95,7 +95,7 @@ Comment4 ""
 $EndDescr
 Text HLabel 6150 4550 2    60   Output ~ 0
 PWM
-Text HLabel 6150 3500 2    60   Input ~ 0
+Text HLabel 3100 4100 0    60   Input ~ 0
 V_Bat
 Text HLabel 6150 3900 2    60   Input ~ 0
 BEMF_A
@@ -154,13 +154,13 @@ PPM
 $Comp
 L LED D1
 U 1 1 55E38A30
-P 2650 4100
-F 0 "D1" H 2650 4200 50  0000 C CNN
-F 1 "LED" H 2650 4000 50  0000 C CNN
-F 2 "LEDs:LED-0805" H 2650 4100 60  0001 C CNN
-F 3 "" H 2650 4100 60  0000 C CNN
-	1    2650 4100
-	1    0    0    1   
+P 7150 3800
+F 0 "D1" H 7150 3900 50  0000 C CNN
+F 1 "LED" H 7150 3700 50  0000 C CNN
+F 2 "LEDs:LED-0805" H 7150 3800 60  0001 C CNN
+F 3 "" H 7150 3800 60  0000 C CNN
+	1    7150 3800
+	-1   0    0    -1  
 $EndComp
 $Comp
 L GND #PWR05
@@ -243,12 +243,12 @@ Wire Wire Line
 $Comp
 L R R1
 U 1 1 55E41F1D
-P 3150 4100
-F 0 "R1" V 3230 4100 50  0000 C CNN
-F 1 "220R" V 3150 4100 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805_HandSoldering" V 3080 4100 30  0001 C CNN
-F 3 "" H 3150 4100 30  0000 C CNN
-	1    3150 4100
+P 5750 3500
+F 0 "R1" V 5830 3500 50  0000 C CNN
+F 1 "220R" V 5750 3500 50  0000 C CNN
+F 2 "Resistors_SMD:R_0805_HandSoldering" V 5680 3500 30  0001 C CNN
+F 3 "" H 5750 3500 30  0000 C CNN
+	1    5750 3500
 	0    1    1    0   
 $EndComp
 $Comp
@@ -410,12 +410,12 @@ Wire Wire Line
 $Comp
 L GND #PWR010
 U 1 1 55E78AA9
-P 2300 4150
-F 0 "#PWR010" H 2300 3900 50  0001 C CNN
-F 1 "GND" H 2300 4000 50  0000 C CNN
-F 2 "" H 2300 4150 60  0000 C CNN
-F 3 "" H 2300 4150 60  0000 C CNN
-	1    2300 4150
+P 7500 3800
+F 0 "#PWR010" H 7500 3550 50  0001 C CNN
+F 1 "GND" H 7500 3650 50  0000 C CNN
+F 2 "" H 7500 3800 60  0000 C CNN
+F 3 "" H 7500 3800 60  0000 C CNN
+	1    7500 3800
 	1    0    0    -1  
 $EndComp
 NoConn ~ 3450 4000
@@ -431,8 +431,6 @@ Wire Wire Line
 	5350 4350 6150 4350
 Wire Wire Line
 	6150 4650 5350 4650
-Wire Wire Line
-	5350 3500 6150 3500
 Wire Wire Line
 	6150 3600 5350 3600
 Wire Wire Line
@@ -470,14 +468,6 @@ Wire Wire Line
 	7150 3600 7150 3400
 Wire Wire Line
 	7150 3200 7150 3000
-Wire Wire Line
-	3450 4100 3300 4100
-Wire Wire Line
-	3000 4100 2850 4100
-Wire Wire Line
-	2450 4100 2300 4100
-Wire Wire Line
-	2300 4100 2300 4150
 NoConn ~ 5350 2750
 NoConn ~ 5350 4000
 $Comp
@@ -521,22 +511,6 @@ F 3 "" H 2850 3450 60  0000 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +5V #PWR011
-U 1 1 55F5AF77
-P 2850 3150
-F 0 "#PWR011" H 2850 3000 50  0001 C CNN
-F 1 "+5V" H 2850 3290 50  0000 C CNN
-F 2 "" H 2850 3150 60  0000 C CNN
-F 3 "" H 2850 3150 60  0000 C CNN
-	1    2850 3150
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	2850 3150 2850 3300
-Wire Wire Line
-	2850 3250 3450 3250
-Connection ~ 2850 3250
-$Comp
 L GND #PWR012
 U 1 1 55F5B2CC
 P 2850 3650
@@ -549,8 +523,20 @@ F 3 "" H 2850 3650 60  0000 C CNN
 $EndComp
 Wire Wire Line
 	2850 3600 2850 3650
-Text Notes 2800 4400 0    60   ~ 0
-Bei nächster Version ändern!\nPin funktioniert nicht als Ausgang 
-Text Notes 2150 3350 0    60   ~ 0
-Bei nächster Version nur Kondensator an AREF
+Wire Wire Line
+	3450 3250 2850 3250
+Wire Wire Line
+	2850 3250 2850 3300
+Wire Wire Line
+	3100 4100 3450 4100
+Wire Wire Line
+	5350 3500 5600 3500
+Wire Wire Line
+	5900 3500 6900 3500
+Wire Wire Line
+	6900 3500 6900 3800
+Wire Wire Line
+	6900 3800 6950 3800
+Wire Wire Line
+	7350 3800 7500 3800
 $EndSCHEMATC
