@@ -37,24 +37,15 @@ static volatile uint16_t icp_tmpCtrVal = 0;
  * ----------------------------------------------------- */
 void ICP_Init(void)
 {
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	{
-		TCNT1 = 0;
-	}
-	
-	TCCR1B = _BV(ICNC1)|_BV(ICES1)|_BV(CS10);
+	TIMSK1 = 0;
+	TCCR1A = 0;
+	TCCR1C = 0;
+	TCCR1B = _BV(ICNC1)|_BV(ICES1)|_BV(CS11);
 	ICP1_DDR &= ~_BV(ICP1_BIT);
 }
 
 void ICP_Start(void)
 {
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	{
-		TCNT1 = 0;
-	}
-	
-	TCCR1B &= ~_BV(CS10)|_BV(CS11)|_BV(CS12);
-	TCCR1B |= _BV(CS10);
 	TIFR1 |= _BV(ICF1);
 	TIMSK1 |= _BV(ICIE1);
 }
@@ -62,7 +53,6 @@ void ICP_Start(void)
 void ICP_Stop(void)
 {
 	TIMSK1 &= ~_BV(ICIE1);
-	TCCR1B &= ~_BV(CS10)|_BV(CS11)|_BV(CS12);
 }
 
 uint16_t ICP_GetValue(void)

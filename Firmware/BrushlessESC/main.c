@@ -10,7 +10,13 @@
 /*=============================================================================
  =======                            INCLUDES                             =======
  =============================================================================*/
-#include "main.h"
+
+#include "drivers/ACP/ACP.h"
+#include "drivers/ADC/ADC.h"
+#include "drivers/ICP/ICP.h"
+#include "drivers/PWM/PWM.h"
+#include "drivers/SPI/SPI_slave.h"
+#include "EngineSpeedController.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
  =============================================================================*/
@@ -30,14 +36,17 @@
 /* -----------------------------------------------------
  * --               Public functions                  --
  * ----------------------------------------------------- */
-void main(void)
+int main(void)
 {
 	ACP_Init();
 	ADC_Init();
 	ICP_Init();
 	PWM_Init();
+	SPI_SlaveInit();
 	BLDC_Init();
-	
+
+	BLDC_Start();
+
 	do 
 	{
 		BLDC_StateMachine();

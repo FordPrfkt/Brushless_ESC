@@ -27,10 +27,25 @@
 /*=============================================================================
 =======                       CONSTANTS  &  TYPES                       =======
 =============================================================================*/
+typedef enum ADC_Input_e
+{
+	ADC_INPUT_ADC1 = _BV(MUX1),
+	ADC_INPUT_ADC2 = _BV(MUX2),
+	ADC_INPUT_ADC3 = _BV(MUX1)|_BV(MUX2),
+	ADC_INPUT_ADC4 = _BV(MUX3),
+	ADC_INPUT_ADC5 = _BV(MUX3)|_BV(MUX1),
+	ADC_INPUT_ADC6 = _BV(MUX3)|_BV(MUX2),
+	ADC_INPUT_ADC7 = _BV(MUX1)|_BV(MUX2)|_BV(MUX3)
+}ADC_Input_t;
 
 /*=============================================================================
 =======                              EXPORTS                            =======
 =============================================================================*/
+void ADC_Init(void);
+void ADC_Enable(void);
+void ADC_Disable(void);
+void ADC_SelectInput(ADC_Input_t input);
+void ADC_StartConversion(void);
 
 /* end of storage class specifier if used with C++ */
 #ifdef  __cplusplus

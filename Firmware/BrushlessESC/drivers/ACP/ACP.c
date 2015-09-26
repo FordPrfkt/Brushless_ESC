@@ -14,6 +14,7 @@
 #include <avr/sfr_defs.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
+#include "../../EngineSpeedController.h"
 #include "ACP.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
@@ -61,7 +62,3 @@ void ACP_SelectInput(ACP_Input_t input)
 /* -----------------------------------------------------
  * --               Private functions                  --
  * ----------------------------------------------------- */
-ISR(ANALOG_COMP_vect)
-{
-	
-}

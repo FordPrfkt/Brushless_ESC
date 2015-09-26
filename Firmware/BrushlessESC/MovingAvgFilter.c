@@ -1,8 +1,8 @@
 /*!
-***     \file	  ADC.c
-***     \ingroup  ADC
+***     \file	  C_File1.c
+***     \ingroup  C File1
 ***     \author   Daniel
-***     \date	  9/20/2015 5:55:57 PM
+***     \date	  11/23/2014 2:02:25 PM
 ***     \brief    TODO
 ***
 ******************************************************************************/
@@ -10,10 +10,9 @@
 /*=============================================================================
  =======                            INCLUDES                             =======
  =============================================================================*/
-#include <avr/io.h>
-#include <avr/sfr_defs.h>
-#include <avr/interrupt.h>
-#include "ADC.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include "MovingAvgFilter.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
  =============================================================================*/
@@ -33,37 +32,41 @@
 /* -----------------------------------------------------
  * --               Public functions                  --
  * ----------------------------------------------------- */
-void ADC_Init(void)
+void MAVG_Init(MAVG_FilterData_t filterData, uint8_t filterLen, uint16_t initValue)
 {
-	ADCSRA = _BV(ADIE)|_BV(ADPS0);
-	ADCSRB = 0;
-	DIDR0 = _BV(ADC0D);
-	ADMUX = _BV(REFS0);
+	filterData.filterLen = filterLen;
+	filterData.filterPos = 0;
+	/*memset(filterData.filterContent, initValue, sizeof(uint16_t)*filterLen);	*/
 }
 
-void ADC_Enable(void)
+void MAVG_AddValue(MAVG_FilterData_t filterData, uint16_t value)
 {
-	ADCSRA |= _BV(ADEN);
+	filterData.filterPos++;
+	filterData.filterPos %= filterData.filterLen;
+	filterData.filterContent[filterData.filterPos] = value;
 }
 
-void ADC_Disable(void)
+uint16_t MAVG_GetResult(MAVG_FilterData_t filterData)
 {
-	ADCSRA &= ~_BV(ADEN);
+	uint8_t ctr;
+	uint32_t result = 0;
+	
+	for (ctr = 0; ctr < filterData.filterLen; ctr++)
+	{
+		/* Kein Ueberlauf möglich (255 * uint16_max < uint32_max) */
+		result += filterData.filterContent[ctr];
+	}
+	
+	result /= filterData.filterLen;
+	
+	if (UINT16_MAX < result)
+	{
+		result = UINT16_MAX;
+	}
+	
+	return (uint16_t)result;
 }
 
-void ADC_SelectInput(ADC_Input_t input)
-{
-	ADMUX = (ADMUX & 0xE0) | input;
-}
-
-void ADC_StartConversion(void)
-{
-	ADCSRA |= _BV(ADSC);
-}
 /* -----------------------------------------------------
  * --               Private functions                  --
  * ----------------------------------------------------- */
-ISR(ADC_vect)
-{
-	
-}

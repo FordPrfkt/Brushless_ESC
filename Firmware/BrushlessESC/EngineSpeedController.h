@@ -46,6 +46,10 @@ typedef enum BLDC_State_e
 =======                              EXPORTS                            =======
 =============================================================================*/
 void BLDC_Init(void);
+void BLDC_Start(void);
+void BLDC_StartMotor(void);
+void BLDC_StopMotor(void);
+void BLDC_StateMachine(void);
 
 /* end of storage class specifier if used with C++ */
 #ifdef  __cplusplus

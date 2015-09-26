@@ -10,40 +10,78 @@
 /*=============================================================================
  =======                            INCLUDES                             =======
  =============================================================================*/
-#include "SpeedController.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include <avr/io.h>
+#include <avr/sfr_defs.h>
+#include <avr/interrupt.h>
+#include <util/atomic.h>
+#include "drivers/ACP/ACP.h"
+#include "drivers/ADC/ADC.h"
+#include "drivers/ICP/ICP.h"
+#include "drivers/PWM/PWM.h"
+#include "drivers/SPI/SPI_slave.h"
+#include "EngineSpeedController.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
  =============================================================================*/
+/* Motor Parameters */
+#define MOTOR_RPM_CONSTANT 950 /* Outrunner BL2215/25 950 RPM/V */
+#define MOTOR_RPM_MAX 10545 /* Outrunner BL2215/25 950 RPM/V * 11.1V */
+
+/* Kommutierungsparameter */
 #define IN_PIN_PWM_MODE 0
 #define IN_PIN_CONSTANT_MODE 1
 #define PHASE_LOW_SIDE 0
 #define PHASE_HIGH_SIDE 1
 #define PHASE_DISABLED 1
 #define PHASE_ACTIVE 0
+#define PHASE_A 0
+#define PHASE_B 1
+#define PHASE_C 2
 
+/* Besondere Kommutierungseinstellungen */
 #define BLDC_COMMUTATION_OFF 6
 #define BLDC_COMMUTATION_QUICKSTOP 7
-#define BLDC_COMMUTATION_ALIGN 8
 
+/* Port+Pin Einstellungen */
 #define DDR_BLDC DDRD
-#define DDRBIT_PHASE_A_IN DDD0
-#define DDRBIT_PHASE_B_IN 
-#define DDRBIT_PHASE_C_IN
-#define DDRBIT_PHASE_A_SD DDD0
-#define DDRBIT_PHASE_B_SD
-#define DDRBIT_PHASE_C_SD
-
+#define DDRBIT_PHASE_A_IN DDD5
+#define DDRBIT_PHASE_B_IN DDD4
+#define DDRBIT_PHASE_C_IN DDD1
+#define DDRBIT_PHASE_A_SD DDD7
+#define DDRBIT_PHASE_B_SD DDD2
+#define DDRBIT_PHASE_C_SD DDD0
 #define PORT_BLDC PORTD
-#define PIN_PHASE_A_IN PORTD0
-#define PIN_PHASE_B_IN
-#define PIN_PHASE_C_IN
-#define PIN_PHASE_A_SD PORTD0
-#define PIN_PHASE_B_SD
-#define PIN_PHASE_C_SD
+#define PIN_PHASE_A_IN PORTD5
+#define PIN_PHASE_B_IN PORTD4
+#define PIN_PHASE_C_IN PORTD1
+#define PIN_PHASE_A_SD PORTD7
+#define PIN_PHASE_B_SD PORTD2
+#define PIN_PHASE_C_SD PORTD0
 
+/* Align Parameters */
+#define ALIGN_PWM 50
+#define ALIGN_TIME 1000
+
+/* Rampup Parameters */
+#define RAMPUP_RPM_1 (MOTOR_RPM_MAX / 60)
+#define RAMPUP_RPM_2 (MOTOR_RPM_MAX / 6)
+#define RAMPUP_PWM_DUTY1 50
+#define RAMPUP_PWM_DUTY2 60
+#define RAMPUP_STEPS 6
+
+#define PWM_MIN 10
+#define PWM_MAX 200
 /*=============================================================================
  =======                       CONSTANTS  &  TYPES                       =======
  =============================================================================*/
+typedef enum BLDC_ZeroCrossWindowState_e
+{
+	BLDC_ZCROSS_WINDOWCLOSED = 0,
+	BLDC_ZCROSS_WINDOWOPEN
+}BLDC_ZeroCrossWindowState_t;
+
 typedef struct BLDC_CommutationState_s
 {
 	uint16_t phaseA_IN_DDR:1;
@@ -56,8 +94,15 @@ typedef struct BLDC_CommutationState_s
 	uint16_t phaseC_IN:1;
 	uint16_t phaseC_SD:1;
 	uint16_t ComparatorInput:3;
-	uint16_t unused:4;
+	uint16_t BEMFPhase:2;
+	uint16_t unused:2;
 }BLDC_CommutationState_t;
+
+typedef struct BLDC_Rampup_Table_s
+{
+	uint8_t pwmDuty;
+	uint8_t commutationTime;
+}BLDC_Rampup_Table_t;
 
 /*
 Zustand 	Phase A 	Phase B 	Phase C 	Stromfluss 	Komparator-Eingänge
@@ -70,36 +115,65 @@ Zustand 	Phase A 	Phase B 	Phase C 	Stromfluss 	Komparator-Eingänge
 Off			Floating	Floating	Floating 	 			
 Quickstop	GND 		GND 		GND 		
 */
-static const BLDC_CommutationState_t BLDC_CommutationStates[9] = 
+static const BLDC_CommutationState_t BLDC_CommutationStates[8] = 
 {
-/* PhaseA_IN_DDR		phaseA_IN		phaseA_SD		PhaseB_IN_DDR			phaseB_IN		phaseB_SD		PhaseC_IN_DDR			phaseC_IN		phaseC_SD		Comparator */
-{IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED, IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC3,0},
-{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC4,0},
-{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,0},
-{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED, IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC3,0},
-{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC4,0},
-{IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,0}
-{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,0}
-{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC2,0}
-{IN_PIN_CONSTANT_MODE,	PHASE_HIGH_SIDE,PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC2,0}
+/* PhaseA_IN_DDR		phaseA_IN		phaseA_SD		PhaseB_IN_DDR			phaseB_IN		phaseB_SD		PhaseC_IN_DDR			phaseC_IN		phaseC_SD		Comparator		BEMF Phase */
+{IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED, IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC3,	PHASE_B, 0},
+{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC4,	PHASE_A, 0},
+{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,	PHASE_C, 0},
+{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED, IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC3,	PHASE_B, 0},
+{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC4,	PHASE_A, 0},
+{IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,	PHASE_C, 0},
+{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,	PHASE_B, 0},
+{IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC2,	PHASE_B, 0}
+};
+
+static const BLDC_Rampup_Table_t BLDC_RampupTable[RAMPUP_STEPS] = 
+{
+	{50, 100},
+	{51, 90},
+	{53, 80},
+	{55, 70},
+	{57, 60},
+	{60, 50}	
 };
 
 /*=============================================================================
  =======                VARIABLES & MESSAGES & RESSOURCEN                =======
  =============================================================================*/
+static uint8_t bldc_RampupStep = 0;	/* aktueller Ramp-Up Schritt */
+
 static uint8_t bldc_CommutationStep = 0;	/* aktueller Kommutierungsschritt */
-static uint8_t bldc_CommutationDelayTime = 0; /* Berechnete Verzoegerung um 30° Phasenwinkel zu erreichen */
 static uint8_t bldc_FailedCommutations[3] = {0,0,0}; /* Fehlerhafte Kommutierungen pro Phase */
-	
+
+static uint8_t bldc_PWMValue = 0;
+
+static volatile uint16_t bldc_tCommutationDelay = 0; /* Berechnete Verzoegerung um 30° Phasenwinkel zu erreichen */
+
+static uint16_t bldc_tCommutation = UINT8_MAX;
+static volatile uint16_t bldc_tZeroCross = UINT8_MAX;
+static volatile uint16_t bldc_zeroCrossTime = UINT8_MAX;
+static volatile uint16_t bldc_tZeroCrossWindowStart = UINT8_MAX;
+static volatile uint16_t bldc_tZeroCrossWindowStop = UINT8_MAX;
+
 static uint16_t bldc_motorCurrent = 0;
 static uint16_t bldc_batVoltage = 0;
+
 static uint16_t bldc_RPMSetpopint = 0;
 static uint16_t bldc_RPMActual = 0;
+static uint16_t bldc_revolutionTimeCtr = 0; /* Zaehlt die Zeit fuer eine Umdrehung (zur RPM Berechnung) */
+
 static BLDC_State_t bldc_State = BLDC_STATE_STOP;
+static BLDC_ZeroCrossWindowState_t bldc_ZeroCrossDetectionState = BLDC_ZCROSS_WINDOWCLOSED;
+
 /*=============================================================================
  =======                              METHODS                           =======
- ========================================PORTD=====================================*/
-
+ =============================================================================*/
+static uint16_t bldc_GetTimer1Value(void);
+static void bldc_EnableTimer1A(uint16_t timerVal);
+static void bldc_DisableTimer1A(void);
+static void bldc_EnableTimer1B(uint16_t timerVal);
+static void bldc_DisableTimer1B(void);
 /* -----------------------------------------------------
  * --               Public functions                  --
  * ----------------------------------------------------- */
@@ -111,7 +185,14 @@ void BLDC_Init(void)
 
 void BLDC_Start(void)
 {
-	
+	ICP_Start();
+	PWM_Start(0);	
+}
+
+void BLDC_StartMotor(void)
+{
+	bldc_State = BLDC_STATE_ALIGN;
+	bldc_RampupStep = 0;
 }
 
 void BLDC_StateMachine(void)
@@ -124,11 +205,8 @@ void BLDC_StateMachine(void)
 	switch (bldc_State)
 	{
 		case BLDC_STATE_STOP:
-			/* Nichts zu tun */
-		break;
-		
 		case BLDC_STATE_ALIGN:
-			bldc_AlignMotor();
+			/* Nichts zu tun */
 		break;
 
 		case BLDC_STATE_RAMP_UP:
@@ -152,24 +230,59 @@ void BLDC_StateMachine(void)
 /* -----------------------------------------------------
  * --               Private functions                  --
  * ----------------------------------------------------- */
-void bldc_StartDelayTimer(uint16_t delayTime)
+void bldc_EnableTimer1A(uint16_t timerVal)
 {
-	
+	temp = 0;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	{
+		temp = TCNT1;
+		temp += timerVal;
+		OCR1A = temp;
+	}
+	TIMSK1 |= _BV(OCIE1A);
 }
-	/* Fenster zum erwarteten Nulldurchgang berechnen
-	Fenster = Letzter Nulldurchgang+-10%??
-	Wenn Nulldurchgang innerhalb dieses Fensters erfolgt,
-	wird Commutationdelay(30°) neu berechnet (gütliger Nulldurchgang erkannt)
-	Wenn nicht, erfolgt kommutierung mit letzem Phasenwinkel.
-	Wenn 6 mal (3 Umdrehungen) auf einer Phase kein gültiger Nulldurchgang, erfolgt notstopp 
+
+void bldc_DisableTimer1A(void)
+{
+	TIMSK1 &= ~_BV(OCIE1A);
+}
+
+void bldc_EnableTimer1B(uint16_t timerVal)
+{
+	uint16_t temp;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	{
+		temp = TCNT1;
+		temp += timerVal;
+		OCR1B = temp;
+	}	
+	TIMSK1 |= _BV(OCIE1B);
+}
+
+void bldc_DisableTimer1B(void)
+{
+	TIMSK1 &= ~_BV(OCIE1B);	
+}
+
+uint16_t bldc_GetTimer1Value(void)
+{
+	uint16_t result;
 	
-	Berechnung CommutationDelay: tDelay = tCommutation + (tZeroCross * 2)
-	tDelay = Zeit von der aktuellen Kommutierung bis zur nächsten Kommutierung
-	tZeroCross = Zeit vom der aktuellen Kommutierung bis zum aktuellen Nulldurchgang
-	tCommutation = Zeitpunkt der aktuellen Kommutierung
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	{
+		result = TCNT1;
+	}	
+	
+	return result;
+}
+
+/*	Wenn Nulldurchgang innerhalb dieses Fensters erfolgt,
+	wird Commutationdelay(30°) neu berechnet (gütliger Nulldurchgang erkannt)
+	Wenn nicht, erfolgt kommutierung mit letztem Phasenwinkel.
+	Wenn 6 mal (3 Umdrehungen) auf einer Phase kein gültiger Nulldurchgang, erfolgt notstopp
 	*/
 
-void bldc_SetCommutation(uint8_t commutationStep, bool startTimer)
+void bldc_SetCommutation(uint8_t commutationStep)
 {
 	uint8_t ddrByte;
 	uint8_t portByte;
@@ -194,23 +307,17 @@ void bldc_SetCommutation(uint8_t commutationStep, bool startTimer)
 	
 	PORT_BLDC = portByte;
 	DDR_BLDC = ddrByte;
-		
-	/* ACP Erst am Anfang des zulässigen Fensters aktivieren */
-	if (true == startTimer)
-	{
-		bldc_StartDelayTimer(BLDC_BEMF_ZEROCROSS_WINDOW_START);		
-	}
 }
 
 void bldc_StopMotor(bool quickstop)
 {
-	if (TRUE == quickstop)
+	if (true == quickstop)
 	{
-		bldc_SetCommutation(BLDC_COMMUTATION_QUICKSTOP, false);
+		bldc_SetCommutation(BLDC_COMMUTATION_QUICKSTOP);
 	}
 	else
 	{
-		bldc_SetCommutation(BLDC_COMMUTATION_OFF, false);
+		bldc_SetCommutation(BLDC_COMMUTATION_OFF);
 	}
 	
 	bldc_State = BLDC_STATE_STOP;
@@ -219,13 +326,19 @@ void bldc_StopMotor(bool quickstop)
 
 void bldc_AlignMotor(void)
 {
-	bldc_SetCommutation(BLDC_COMMUTATION_ALIGN, false);
-	bldc_StartDelayTimer(BLDC_ALIGN_TIME);
+	bldc_SetCommutation(0);
+	bldc_EnableTimer1A(ALIGN_TIME);
 }
 
-ISR(TIMER0_COMPA_vect)
+bool SPI_Cmd_Callback(uint8_t cmd, volatile uint8_t *param, uint8_t paramLen)
+{
+	return false;
+}
+
+ISR(TIMER1_COMPA_vect)
 {
 	uint8_t newCommutation;
+	uint32_t temp;
 	switch (bldc_State)
 	{
 		case BLDC_STATE_STOP:
@@ -235,31 +348,72 @@ ISR(TIMER0_COMPA_vect)
 		case BLDC_STATE_ALIGN:
 			/* Align Timeout rum, in den Ramp Up Modus wechseln */
 			bldc_State = BLDC_STATE_RAMP_UP;
-			rampUpTimer = RAMP_UP_INIT;
-			bldc_SetCommutation(1, false);
-			bldc_StartDelayTimer(rampUpTimer);
+			bldc_RampupStep = 0;
+			bldc_SetCommutation(1);
+			PWM_SetValue(BLDC_RampupTable[bldc_RampupStep].pwmDuty);
+			bldc_EnableTimer1A(BLDC_RampupTable[bldc_RampupStep].commutationTime);
 		break;
 
 		case BLDC_STATE_RAMP_UP:
 			/* Ein Ramp-Up increment ist abgelaufen, Kommutierung weiterschalten */
-			newCommutation = bldc_CommutationStep++;
-			newCommutation %= 6;
-			rampUpTimer += RAMP_UP_RATE;
-			if (rampUpTimer == MAX_RAMP_UP)
+			if (++bldc_RampupStep == (RAMPUP_STEPS - 1))
 			{
 				bldc_State = BLDC_STATE_LAST_RAMP_UP;
 			}
-			bldc_SetCommutation(newCommutation, false);
-			bldc_StartZeroCrossWindow();
-			bldc_StartDelayTimer(rampUpTimer);
+
+			newCommutation = bldc_CommutationStep++;
+			newCommutation %= 6;
+			
+			PWM_SetValue(BLDC_RampupTable[bldc_RampupStep].pwmDuty);
+			bldc_SetCommutation(newCommutation);
+			bldc_tCommutation = bldc_GetTimer1Value();
+			bldc_EnableTimer1A(BLDC_RampupTable[bldc_RampupStep].commutationTime);
 		break;
 
 		case BLDC_STATE_LAST_RAMP_UP:
-		
+			/*
+			   Mit letzten Einstellungen weiter kommutieren.
+			   Wenn nicht innerhalb von 3 Umdrehungen BEMF erkannt wird,
+			   erfolgt Stop 
+			 */
+
+			newCommutation = bldc_CommutationStep++;
+			newCommutation %= 6;
+			
+			PWM_SetValue(BLDC_RampupTable[bldc_RampupStep].pwmDuty);
+			bldc_SetCommutation(newCommutation);
+			bldc_tCommutation = bldc_GetTimer1Value();
+			bldc_EnableTimer1A(BLDC_RampupTable[bldc_RampupStep].commutationTime);
+
+			/* Fenster zum erwarteten Nulldurchgang berechnen:
+			   Fenster = Letzter Nulldurchgang+-10%?? 
+			*/		
+			temp = bldc_zeroCrossTime * 100;
+			temp += 500;
+			temp /= 1000;
+			bldc_tZeroCrossWindowStart = bldc_zeroCrossTime - temp;
+			bldc_tZeroCrossWindowStop = bldc_tZeroCrossWindowStart + (temp * 2);
+			bldc_EnableTimer1B(bldc_tZeroCrossWindowStart);
 		break;
 
 		case BLDC_STATE_RUNNING:
-		
+			newCommutation = bldc_CommutationStep++;
+			newCommutation %= 6;
+			
+			PWM_SetValue(bldc_PWMValue);
+			bldc_SetCommutation(newCommutation);
+			bldc_tCommutation = bldc_GetTimer1Value();
+			bldc_EnableTimer1A(bldc_tCommutationDelay);
+
+			/* Fenster zum erwarteten Nulldurchgang berechnen:
+			   Fenster = Letzter Nulldurchgang+-10%?? 
+			*/		
+			temp = bldc_zeroCrossTime * 100;
+			temp += 500;
+			temp /= 1000;
+			bldc_tZeroCrossWindowStart = bldc_zeroCrossTime - temp;
+			bldc_tZeroCrossWindowStop = bldc_tZeroCrossWindowStart + (temp * 2);
+			bldc_EnableTimer1B(bldc_tZeroCrossWindowStart);
 		break;
 
 		default:
@@ -269,19 +423,47 @@ ISR(TIMER0_COMPA_vect)
 	}	
 }
 
-ISR(TIMER0_COMPB_vect)
+ISR(TIMER1_COMPB_vect)
 {
 	switch (bldc_ZeroCrossDetectionState)
 	{
 		case BLDC_ZCROSS_WINDOWCLOSED:
-			bldc_ArmZeroCrossDetection();
+			ADC_Disable();
+			ACP_SelectInput(BLDC_CommutationStates[bldc_CommutationStep].ComparatorInput);
+			ACP_Enable();
+			bldc_ZeroCrossDetectionState = BLDC_ZCROSS_WINDOWOPEN;
+			bldc_EnableTimer1B(bldc_tZeroCrossWindowStop);
 		break;
 		
 		case BLDC_ZCROSS_WINDOWOPEN:
-			bldc_DisarmZeroCrossDetection();
+			ACP_Disable();
+			ADC_Enable();
+			bldc_DisableTimer1B();
+			bldc_ZeroCrossDetectionState = BLDC_ZCROSS_WINDOWCLOSED;
+			bldc_FailedCommutations[BLDC_CommutationStates[bldc_CommutationStep].BEMFPhase]++; 
 		break;
 		
 		default:
 		break;
+	}
+}
+
+ISR(ANALOG_COMP_vect)
+{
+	if ((BLDC_STATE_LAST_RAMP_UP == bldc_State) || 
+		(BLDC_STATE_RUNNING == bldc_State))
+	{
+		/*
+		 * Berechnung CommutationDelay: tDelay = tCommutation + (tZeroCross * 2)
+		 * tDelay = Zeit von der aktuellen Kommutierung bis zur nächsten Kommutierung
+		 * tZeroCross = Zeit vom der aktuellen Kommutierung bis zum aktuellen Nulldurchgang
+		 * tCommutation = Zeitpunkt der aktuellen Kommutierung
+		*/
+		bldc_tZeroCross = bldc_GetTimer1Value();
+		bldc_DisableTimer1B();
+
+		bldc_zeroCrossTime = bldc_tZeroCross - bldc_tCommutation;
+		bldc_tCommutationDelay = bldc_tZeroCross + bldc_zeroCrossTime;
+		bldc_FailedCommutations[BLDC_CommutationStates[bldc_CommutationStep].BEMFPhase] = 0;
 	}
 }

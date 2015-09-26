@@ -11,6 +11,8 @@
  =======                            INCLUDES                             =======
  =============================================================================*/
 #include <avr/io.h>
+#include <avr/sfr_defs.h>
+#include <avr/interrupt.h>
 #include "PWM.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======

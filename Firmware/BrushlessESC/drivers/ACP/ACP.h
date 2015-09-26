@@ -19,6 +19,8 @@
 /*=============================================================================
 =======                            INCLUDES                             =======
 =============================================================================*/
+#include <avr/io.h>
+#include <avr/sfr_defs.h>
 
 /*=============================================================================
 =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
@@ -41,6 +43,10 @@ typedef enum ACP_Input_e
 /*=============================================================================
 =======                              EXPORTS                            =======
 =============================================================================*/
+void ACP_Init(void);
+void ACP_Enable(void);
+void ACP_Disable(void);
+void ACP_SelectInput(ACP_Input_t input);
 
 /* end of storage class specifier if used with C++ */
 #ifdef  __cplusplus
