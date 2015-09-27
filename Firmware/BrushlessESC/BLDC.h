@@ -1,6 +1,6 @@
 /*!
-***     \file	  SpeedController.c
-***     \ingroup  SpeedController
+***     \file	  BLDC.h
+***     \ingroup  BLDC
 ***     \author   Daniel
 ***     \date	  9/19/2015 12:40:19 PM
 ***     \brief    TODO
@@ -8,8 +8,8 @@
 ******************************************************************************/
 
 /* Header file guard symbol to prevent multiple includes */
-#ifndef SpeedController_H_
-#define SpeedController_H_
+#ifndef BLDC_H_
+#define BLDC_H_
 
 /* storage class specifier if used with C++ */
 #ifdef  __cplusplus
@@ -42,6 +42,18 @@ typedef enum BLDC_State_e
 	BLDC_STATE_RUNNING
 }BLDC_State_t;
 
+typedef enum BLDC_Error_e
+{
+	BLDC_NO_ERROR = 0,
+	BLDC_ERROR_OVERCURRENT = 1,
+	BLDC_ERROR_OVERVOLTAGE = 2,
+	BLDC_ERROR_UNDERVOLTAGE = 4,
+	BLDC_ERROR_NO_SIGNAL = 8,
+	BLDC_ERROR_CPU_RESET = 16,
+	BLDC_ERROR_NO_BEMF_A = 32,
+	BLDC_ERROR_NO_BEMF_B = 64,
+	BLDC_ERROR_NO_BEMF_C = 128
+}BLDC_Error_t;
 /*=============================================================================
 =======                              EXPORTS                            =======
 =============================================================================*/
@@ -56,4 +68,4 @@ void BLDC_StateMachine(void);
 }
 #endif
 
-#endif /*SpeedController_H_*/
+#endif /*BLDC_H_*/

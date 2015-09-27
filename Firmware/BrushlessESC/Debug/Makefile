@@ -50,7 +50,8 @@ C_SRCS +=  \
 ../main.c \
 ../MovingAvgFilter.c \
 ../PID_Controller.c \
-../EngineSpeedController.c
+../BLDC.c \
+../_StackInstrument.c
 
 
 PREPROCESSING_SRCS += 
@@ -68,7 +69,8 @@ drivers/SPI/SPI_slave.o \
 main.o \
 MovingAvgFilter.o \
 PID_Controller.o \
-EngineSpeedController.o
+BLDC.o \
+_StackInstrument.o
 
 OBJS_AS_ARGS +=  \
 drivers/ACP/ACP.o \
@@ -79,7 +81,8 @@ drivers/SPI/SPI_slave.o \
 main.o \
 MovingAvgFilter.o \
 PID_Controller.o \
-EngineSpeedController.o
+BLDC.o \
+_StackInstrument.o
 
 C_DEPS +=  \
 drivers/ACP/ACP.d \
@@ -90,7 +93,8 @@ drivers/SPI/SPI_slave.d \
 main.d \
 MovingAvgFilter.d \
 PID_Controller.d \
-EngineSpeedController.d
+BLDC.d \
+_StackInstrument.d
 
 C_DEPS_AS_ARGS +=  \
 drivers/ACP/ACP.d \
@@ -101,7 +105,8 @@ drivers/SPI/SPI_slave.d \
 main.d \
 MovingAvgFilter.d \
 PID_Controller.d \
-EngineSpeedController.d
+BLDC.d \
+_StackInstrument.d
 
 OUTPUT_FILE_PATH +=BrushlessESC.elf
 
@@ -114,6 +119,8 @@ OUTPUT_FILE_DEP:= ./makedep.mk
 LIB_DEP+= 
 
 # AVR32/GNU C Compiler
+
+
 
 
 

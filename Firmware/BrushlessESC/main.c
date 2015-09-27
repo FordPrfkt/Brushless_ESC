@@ -16,7 +16,7 @@
 #include "drivers/ICP/ICP.h"
 #include "drivers/PWM/PWM.h"
 #include "drivers/SPI/SPI_slave.h"
-#include "EngineSpeedController.h"
+#include "BLDC.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
  =============================================================================*/

@@ -14,7 +14,7 @@
 #include <avr/sfr_defs.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
-#include "../../EngineSpeedController.h"
+#include "../../BLDC.h"
 #include "ACP.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======

@@ -18,5 +18,7 @@ MovingAvgFilter.c
 
 PID_Controller.c
 
-EngineSpeedController.c
+BLDC.c
+
+_StackInstrument.c
 

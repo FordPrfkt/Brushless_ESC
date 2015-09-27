@@ -1,6 +1,6 @@
 /*!
-***     \file	  SpeedController.c
-***     \ingroup  SpeedController
+***     \file	  BLDC.c
+***     \ingroup  BLDC
 ***     \author   Daniel
 ***     \date	  9/19/2015 12:40:04 PM
 ***     \brief    TODO
@@ -21,13 +21,13 @@
 #include "drivers/ICP/ICP.h"
 #include "drivers/PWM/PWM.h"
 #include "drivers/SPI/SPI_slave.h"
-#include "EngineSpeedController.h"
+#include "BLDC.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
  =============================================================================*/
 /* Motor Parameters */
-#define MOTOR_RPM_CONSTANT 950 /* Outrunner BL2215/25 950 RPM/V */
-#define MOTOR_RPM_MAX 10545 /* Outrunner BL2215/25 950 RPM/V * 11.1V */
+#define MOTOR_RPM_CONSTANT 950 /* Emax Outrunner BL2215/25 950 RPM/V */
+#define MOTOR_RPM_MAX 10545 /* 950 RPM/V x 11.1V */
 
 /* Kommutierungsparameter */
 #define IN_PIN_PWM_MODE 0
@@ -141,18 +141,15 @@ static const BLDC_Rampup_Table_t BLDC_RampupTable[RAMPUP_STEPS] =
 /*=============================================================================
  =======                VARIABLES & MESSAGES & RESSOURCEN                =======
  =============================================================================*/
-static uint8_t bldc_RampupStep = 0;	/* aktueller Ramp-Up Schritt */
-
-static uint8_t bldc_CommutationStep = 0;	/* aktueller Kommutierungsschritt */
-static uint8_t bldc_FailedCommutations[3] = {0,0,0}; /* Fehlerhafte Kommutierungen pro Phase */
-
 static uint8_t bldc_PWMValue = 0;
 
-static volatile uint16_t bldc_tCommutationDelay = 0; /* Berechnete Verzoegerung um 30° Phasenwinkel zu erreichen */
+static volatile uint8_t bldc_RampupStep = 0;	/* aktueller Ramp-Up Schritt */
+static volatile uint8_t bldc_CommutationStep = 0;	/* aktueller Kommutierungsschritt */
+static volatile uint8_t bldc_FailedCommutations[3] = {0,0,0}; /* Fehlerhafte Kommutierungen pro Phase */
 
-static uint16_t bldc_tCommutation = UINT8_MAX;
+static volatile uint16_t bldc_tCommutationDelay = 0; /* Berechnete Verzoegerung um 30° Phasenwinkel zu erreichen */
+static volatile uint16_t bldc_tCommutation = UINT8_MAX;
 static volatile uint16_t bldc_tZeroCross = UINT8_MAX;
-static volatile uint16_t bldc_zeroCrossTime = UINT8_MAX;
 static volatile uint16_t bldc_tZeroCrossWindowStart = UINT8_MAX;
 static volatile uint16_t bldc_tZeroCrossWindowStop = UINT8_MAX;
 
@@ -163,9 +160,9 @@ static uint16_t bldc_RPMSetpopint = 0;
 static uint16_t bldc_RPMActual = 0;
 static uint16_t bldc_revolutionTimeCtr = 0; /* Zaehlt die Zeit fuer eine Umdrehung (zur RPM Berechnung) */
 
-static BLDC_State_t bldc_State = BLDC_STATE_STOP;
-static BLDC_ZeroCrossWindowState_t bldc_ZeroCrossDetectionState = BLDC_ZCROSS_WINDOWCLOSED;
-
+static volatile BLDC_State_t bldc_State = BLDC_STATE_STOP;
+static volatile BLDC_ZeroCrossWindowState_t bldc_ZeroCrossDetectionState = BLDC_ZCROSS_WINDOWCLOSED;
+static volatile BLDC_Error_t bldc_ErrorStatus = BLDC_NO_ERROR;
 /*=============================================================================
  =======                              METHODS                           =======
  =============================================================================*/
@@ -219,6 +216,17 @@ void BLDC_StateMachine(void)
 
 		case BLDC_STATE_RUNNING:
 		/* Regler, PWM Sollwertvorgabe */
+		PWM_SetValue(bldc_PWMValue);
+
+		/*	Wenn 6 mal (3 Umdrehungen) auf einer Phase kein gültiger 
+		    Nulldurchgang, erfolgt Stopp */
+		if ((bldc_FailedCommutations[0] >= 6) ||
+		(bldc_FailedCommutations[1] >= 6) ||
+		(bldc_FailedCommutations[2] >= 6))
+		{
+			bldc_StopMotor(true);
+			/* TODO: Fehler setzen */
+		}
 		break;
 
 		default:
@@ -232,7 +240,7 @@ void BLDC_StateMachine(void)
  * ----------------------------------------------------- */
 void bldc_EnableTimer1A(uint16_t timerVal)
 {
-	temp = 0;
+	uint16_t temp = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		temp = TCNT1;
@@ -275,12 +283,6 @@ uint16_t bldc_GetTimer1Value(void)
 	
 	return result;
 }
-
-/*	Wenn Nulldurchgang innerhalb dieses Fensters erfolgt,
-	wird Commutationdelay(30°) neu berechnet (gütliger Nulldurchgang erkannt)
-	Wenn nicht, erfolgt kommutierung mit letztem Phasenwinkel.
-	Wenn 6 mal (3 Umdrehungen) auf einer Phase kein gültiger Nulldurchgang, erfolgt notstopp
-	*/
 
 void bldc_SetCommutation(uint8_t commutationStep)
 {
@@ -371,49 +373,44 @@ ISR(TIMER1_COMPA_vect)
 		break;
 
 		case BLDC_STATE_LAST_RAMP_UP:
-			/*
-			   Mit letzten Einstellungen weiter kommutieren.
-			   Wenn nicht innerhalb von 3 Umdrehungen BEMF erkannt wird,
-			   erfolgt Stop 
-			 */
-
 			newCommutation = bldc_CommutationStep++;
-			newCommutation %= 6;
-			
-			PWM_SetValue(BLDC_RampupTable[bldc_RampupStep].pwmDuty);
+			newCommutation %= 6;			
 			bldc_SetCommutation(newCommutation);
 			bldc_tCommutation = bldc_GetTimer1Value();
-			bldc_EnableTimer1A(BLDC_RampupTable[bldc_RampupStep].commutationTime);
-
+			
+			bldc_FailedCommutations[0] = 0;
+			bldc_FailedCommutations[1] = 0;
+			bldc_FailedCommutations[2] = 0;
+			
 			/* Fenster zum erwarteten Nulldurchgang berechnen:
 			   Fenster = Letzter Nulldurchgang+-10%?? 
 			*/		
-			temp = bldc_zeroCrossTime * 100;
-			temp += 500;
-			temp /= 1000;
-			bldc_tZeroCrossWindowStart = bldc_zeroCrossTime - temp;
-			bldc_tZeroCrossWindowStop = bldc_tZeroCrossWindowStart + (temp * 2);
+			bldc_tCommutationDelay = BLDC_RampupTable[bldc_RampupStep].commutationTime / 2;
+			bldc_tZeroCrossWindowStart = 10;
+			bldc_tZeroCrossWindowStop = bldc_tCommutationDelay - 10;
 			bldc_EnableTimer1B(bldc_tZeroCrossWindowStart);
+			bldc_State = BLDC_STATE_RUNNING;
 		break;
 
-		case BLDC_STATE_RUNNING:
+		case BLDC_STATE_RUNNING:			
 			newCommutation = bldc_CommutationStep++;
 			newCommutation %= 6;
-			
-			PWM_SetValue(bldc_PWMValue);
+
 			bldc_SetCommutation(newCommutation);
 			bldc_tCommutation = bldc_GetTimer1Value();
-			bldc_EnableTimer1A(bldc_tCommutationDelay);
 
 			/* Fenster zum erwarteten Nulldurchgang berechnen:
 			   Fenster = Letzter Nulldurchgang+-10%?? 
-			*/		
-			temp = bldc_zeroCrossTime * 100;
+			   Wenn Nulldurchgang innerhalb dieses Fensters erfolgt,
+	           wird Commutationdelay(30°) neu berechnet (gütliger Nulldurchgang erkannt)
+	           Wenn nicht, erfolgt kommutierung mit letztem Phasenwinkel.
+			*/
+			temp = bldc_tCommutationDelay * 100;
 			temp += 500;
 			temp /= 1000;
-			bldc_tZeroCrossWindowStart = bldc_zeroCrossTime - temp;
+			bldc_tZeroCrossWindowStart = bldc_tCommutationDelay - temp;
 			bldc_tZeroCrossWindowStop = bldc_tZeroCrossWindowStart + (temp * 2);
-			bldc_EnableTimer1B(bldc_tZeroCrossWindowStart);
+			bldc_EnableTimer1B(bldc_tZeroCrossWindowStart);				
 		break;
 
 		default:
@@ -440,7 +437,8 @@ ISR(TIMER1_COMPB_vect)
 			ADC_Enable();
 			bldc_DisableTimer1B();
 			bldc_ZeroCrossDetectionState = BLDC_ZCROSS_WINDOWCLOSED;
-			bldc_FailedCommutations[BLDC_CommutationStates[bldc_CommutationStep].BEMFPhase]++; 
+			bldc_FailedCommutations[BLDC_CommutationStates[bldc_CommutationStep].BEMFPhase]++;
+			bldc_EnableTimer1A(bldc_tCommutationDelay);
 		break;
 		
 		default:
@@ -455,15 +453,23 @@ ISR(ANALOG_COMP_vect)
 	{
 		/*
 		 * Berechnung CommutationDelay: tDelay = tCommutation + (tZeroCross * 2)
-		 * tDelay = Zeit von der aktuellen Kommutierung bis zur nächsten Kommutierung
-		 * tZeroCross = Zeit vom der aktuellen Kommutierung bis zum aktuellen Nulldurchgang
+		 * tDelay = Zeit vom aktuellen Nulldurchgang bis zur nächsten Kommutierung
+		 * tZeroCross = Zeitpunkt des aktuellen Nulldurchgangs
 		 * tCommutation = Zeitpunkt der aktuellen Kommutierung
 		*/
 		bldc_tZeroCross = bldc_GetTimer1Value();
+		ACP_Disable();
+		ADC_Enable();
 		bldc_DisableTimer1B();
-
-		bldc_zeroCrossTime = bldc_tZeroCross - bldc_tCommutation;
-		bldc_tCommutationDelay = bldc_tZeroCross + bldc_zeroCrossTime;
+		bldc_ZeroCrossDetectionState = BLDC_ZCROSS_WINDOWCLOSED;
+		
+		bldc_tCommutationDelay = bldc_tZeroCross - bldc_tCommutation;
 		bldc_FailedCommutations[BLDC_CommutationStates[bldc_CommutationStep].BEMFPhase] = 0;
+		bldc_EnableTimer1A(bldc_tCommutationDelay);
 	}
+}
+
+ISR(ADC_vect)
+{
+	
 }
