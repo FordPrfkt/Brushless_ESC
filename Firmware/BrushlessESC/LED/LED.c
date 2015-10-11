@@ -1,8 +1,8 @@
 /*!
-***     \file	  main.c
-***     \ingroup  main
+***     \file	  LED.c
+***     \ingroup  LED
 ***     \author   Daniel
-***     \date	  9/19/2015 12:38:27 PM
+***     \date	  10/8/2015 11:50:16 PM
 ***     \brief    TODO
 ***
 ******************************************************************************/
@@ -11,26 +11,17 @@
  =======                            INCLUDES                             =======
  =============================================================================*/
 #include <stdint.h>
-#include <stdbool.h>
-#include <avr/signature.h>
 #include <avr/io.h>
 #include <avr/sfr_defs.h>
-#include <avr/interrupt.h>
-#include "drivers/ACP/ACP.h"
-#include "drivers/ADC/ADC.h"
-#include "drivers/Timer/Timer1.h"
-#include "drivers/PWM/PWM.h"
-#include "drivers/SPI/SPI_slave.h"
-#include "ServoInput/ServoInput.h"
-#include "LED/LED.h"
-#include "BLDC.h"
+#include "LED_config.h"
+#include "LED.h"
 
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
  =============================================================================*/
-/* Timer 0 einstellungen */
-#define TIMER0_PRESCALER64() (_BV(CS00)|_BV(CS01))
-#define TIMER0_1MS() (250) /* Timerwert für 1ms bei Prescaler 64. */
+#define LED_ON() (LED_PORT |= _BV(LED_PIN))
+#define LED_OFF() (LED_PORT &= ~_BV(LED_PIN))
+#define LED_TOGGLE() (LED_PORT ^= _BV(LED_PIN))
 
 /*=============================================================================
  =======                       CONSTANTS  &  TYPES                       =======
@@ -39,7 +30,8 @@
 /*=============================================================================
  =======                VARIABLES & MESSAGES & RESSOURCEN                =======
  =============================================================================*/
-static volatile bool run1msTask = false;
+uint16_t led_counter;
+uint16_t led_interval;
 
 /*=============================================================================
  =======                              METHODS                           =======
@@ -48,43 +40,45 @@ static volatile bool run1msTask = false;
 /* -----------------------------------------------------
  * --               Public functions                  --
  * ----------------------------------------------------- */
-int main(void)
+void LED_Init(void)
 {
-    ACP_Init();
-	ADC_Init();
-	PWM_Init();
-	SPI_SlaveInit();
-	TMR1_Init(0);
-    LED_Init();
-	SVI_Init();
-
-	BLDC_Init();
-	BLDC_Start();
-
-    /* 1ms Timer0 starten */
-    TCCR0A = 0;
-    TCCR0B = TIMER0_PRESCALER64(); /* Prescaler 64 */
-    OCR0B = TIMER0_1MS();
-    TIMSK0 = _BV(OCIE0B);
-    TCNT0 = 0;
-
-	do 
-	{
-        if (true == run1msTask)
-        {
-            run1msTask = false;
-        }
-        
-		BLDC_Mainfunction();
-	} while (1);
+    led_interval = 0;
+    led_counter = 0;    
+    LED_DDR |= LED_DDD;
+    LED_PORT &= ~_BV(LED_PIN);
+    LED_OFF();
 }
+
+void LED_Cyclic_1ms(void)
+{
+    if (led_interval > 0)
+    {
+        if (++led_counter >= led_interval)
+        {
+            LED_TOGGLE();
+            led_counter = 0;
+        }
+    }
+}
+
+void LED_On(void)
+{
+    led_interval = 0;
+    LED_ON();
+}
+void LED_Off(void)
+{
+    led_interval = 0;
+    LED_OFF();
+}
+
+void LED_Blink(uint16_t interval)
+{
+    led_counter = 0;
+    led_interval = interval;
+    LED_OFF();
+}
+
 /* -----------------------------------------------------
  * --               Private functions                  --
  * ----------------------------------------------------- */
-
-/* Timer 0 1ms Interrupt */
-ISR(TIMER0_COMPB_vect, ISR_NOBLOCK)
-{
-    run1msTask = true;
-    TIMSK0 = 0;
-}

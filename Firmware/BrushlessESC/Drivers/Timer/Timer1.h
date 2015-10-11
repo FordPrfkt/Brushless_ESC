@@ -1,15 +1,15 @@
 /*!
-***     \file	  H_File1.c
-***     \ingroup  H File1
+***     \file	  ICP.c
+***     \ingroup  ICP
 ***     \author   Daniel
-***     \date	  11/23/2014 2:02:31 PM
+***     \date	  9/20/2015 2:42:12 AM
 ***     \brief    TODO
 ***
 ******************************************************************************/
 
 /* Header file guard symbol to prevent multiple includes */
-#ifndef H_File1_H_
-#define H_File1_H_
+#ifndef ICP_H_
+#define ICP_H_
 
 /* storage class specifier if used with C++ */
 #ifdef  __cplusplus
@@ -27,26 +27,22 @@
 /*=============================================================================
 =======                       CONSTANTS  &  TYPES                       =======
 =============================================================================*/
-typedef uint16_t MAVG_FilterContent_t[];
-typedef uint16_t* MAVG_FilterContentPtr_t;
-
-typedef struct MAVG_FilterData_s
-{
-	uint8_t filterLen;
-	uint8_t filterPos;
-	MAVG_FilterContentPtr_t filterContent;
-}MAVG_FilterData_t;
 
 /*=============================================================================
 =======                              EXPORTS                            =======
 =============================================================================*/
-void MAVG_Init(MAVG_FilterData_t filterData, uint8_t filterLen, uint16_t initValue);
-void MAVG_AddValue(MAVG_FilterData_t filterData, uint16_t value);
-uint16_t MAVG_GetResult(MAVG_FilterData_t filterData);
+void TMR1_Init(uint8_t prescaler);
+void TMR1_EnableTimerA(uint16_t timerVal);
+void TMR1_DisableTimerA(void);
+void TMR1_EnableTimerB(uint16_t timerVal);
+void TMR1_DisableTimerB(void);
+uint16_t TMR1_GetTimerValue(void);
+void TMR1_EnableICP(void);
+void TMR1_DisableICP(void);
 
 /* end of storage class specifier if used with C++ */
 #ifdef  __cplusplus
 }
 #endif
 
-#endif /*H_File1_H_*/
+#endif /*ICP_H_*/

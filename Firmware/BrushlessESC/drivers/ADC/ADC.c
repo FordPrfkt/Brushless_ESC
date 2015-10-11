@@ -13,6 +13,7 @@
 #include <avr/io.h>
 #include <avr/sfr_defs.h>
 #include <avr/interrupt.h>
+#include <util/atomic.h>
 #include "ADC.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
@@ -37,28 +38,44 @@ void ADC_Init(void)
 {
 	ADCSRA = _BV(ADIE)|_BV(ADPS0);
 	ADCSRB = 0;
-	DIDR0 = _BV(ADC0D);
+	DIDR0 = _BV(ADC0D)|_BV(ADC1D)|_BV(ADC2D)|_BV(ADC3D)|_BV(ADC4D)|_BV(ADC5D);
 	ADMUX = _BV(REFS0);
 }
 
-void ADC_Enable(void)
+inline void ADC_Enable(void)
 {
 	ADCSRA |= _BV(ADEN);
 }
 
-void ADC_Disable(void)
+inline void ADC_Disable(void)
 {
 	ADCSRA &= ~_BV(ADEN);
 }
 
-void ADC_SelectInput(ADC_Input_t input)
+inline void ADC_SelectInput(ADC_Input_t input)
 {
 	ADMUX = (ADMUX & 0xE0) | input;
 }
 
-void ADC_StartConversion(void)
+inline ADC_Input_t ADC_GetSelectedInput(void)
+{
+    return (ADMUX & 0xE0);
+}
+
+inline void ADC_StartConversion(void)
 {
 	ADCSRA |= _BV(ADSC);
+}
+
+inline uint16_t ADC_GetConversionResult(void)
+{
+    uint16_t result;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    {
+        result = ADC;
+    }
+    
+    return result;
 }
 /* -----------------------------------------------------
  * --               Private functions                  --

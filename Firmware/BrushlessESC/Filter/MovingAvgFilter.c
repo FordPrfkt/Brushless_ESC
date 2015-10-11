@@ -1,8 +1,8 @@
 /*!
-***     \file	  main.c
-***     \ingroup  main
+***     \file	  C_File1.c
+***     \ingroup  C File1
 ***     \author   Daniel
-***     \date	  9/19/2015 12:38:27 PM
+***     \date	  11/23/2014 2:02:25 PM
 ***     \brief    TODO
 ***
 ******************************************************************************/
@@ -12,25 +12,10 @@
  =============================================================================*/
 #include <stdint.h>
 #include <stdbool.h>
-#include <avr/signature.h>
-#include <avr/io.h>
-#include <avr/sfr_defs.h>
-#include <avr/interrupt.h>
-#include "drivers/ACP/ACP.h"
-#include "drivers/ADC/ADC.h"
-#include "drivers/Timer/Timer1.h"
-#include "drivers/PWM/PWM.h"
-#include "drivers/SPI/SPI_slave.h"
-#include "ServoInput/ServoInput.h"
-#include "LED/LED.h"
-#include "BLDC.h"
-
+#include "MovingAvgFilter.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
  =============================================================================*/
-/* Timer 0 einstellungen */
-#define TIMER0_PRESCALER64() (_BV(CS00)|_BV(CS01))
-#define TIMER0_1MS() (250) /* Timerwert für 1ms bei Prescaler 64. */
 
 /*=============================================================================
  =======                       CONSTANTS  &  TYPES                       =======
@@ -39,7 +24,6 @@
 /*=============================================================================
  =======                VARIABLES & MESSAGES & RESSOURCEN                =======
  =============================================================================*/
-static volatile bool run1msTask = false;
 
 /*=============================================================================
  =======                              METHODS                           =======
@@ -48,43 +32,46 @@ static volatile bool run1msTask = false;
 /* -----------------------------------------------------
  * --               Public functions                  --
  * ----------------------------------------------------- */
-int main(void)
+void MAVG_Init(MAVG_FilterData_t *filterData, uint8_t filterLen, uint16_t initValue)
 {
-    ACP_Init();
-	ADC_Init();
-	PWM_Init();
-	SPI_SlaveInit();
-	TMR1_Init(0);
-    LED_Init();
-	SVI_Init();
+	uint8_t ctr;
+	filterData->filterLen = filterLen;
+	filterData->filterPos = 0;
 
-	BLDC_Init();
-	BLDC_Start();
-
-    /* 1ms Timer0 starten */
-    TCCR0A = 0;
-    TCCR0B = TIMER0_PRESCALER64(); /* Prescaler 64 */
-    OCR0B = TIMER0_1MS();
-    TIMSK0 = _BV(OCIE0B);
-    TCNT0 = 0;
-
-	do 
+	for (ctr = 0; ctr < filterLen; ctr++)
 	{
-        if (true == run1msTask)
-        {
-            run1msTask = false;
-        }
-        
-		BLDC_Mainfunction();
-	} while (1);
+		filterData->filterContent[ctr] = initValue;
+	}
 }
+
+void MAVG_AddValue(MAVG_FilterData_t *filterData, uint16_t value)
+{
+	filterData->filterPos++;
+	filterData->filterPos %= filterData->filterLen;
+	filterData->filterContent[filterData->filterPos] = value;
+}
+
+uint16_t MAVG_GetResult(MAVG_FilterData_t *filterData)
+{
+	uint8_t ctr;
+	uint32_t result = 0;
+	
+	for (ctr = 0; ctr < filterData->filterLen; ctr++)
+	{
+		/* Kein Ueberlauf möglich (255 * uint16_max < uint32_max) */
+		result += filterData->filterContent[ctr];
+	}
+	
+	result /= filterData->filterLen;
+	
+	if (UINT16_MAX < result)
+	{
+		result = UINT16_MAX;
+	}
+	
+	return (uint16_t)result;
+}
+
 /* -----------------------------------------------------
  * --               Private functions                  --
  * ----------------------------------------------------- */
-
-/* Timer 0 1ms Interrupt */
-ISR(TIMER0_COMPB_vect, ISR_NOBLOCK)
-{
-    run1msTask = true;
-    TIMSK0 = 0;
-}

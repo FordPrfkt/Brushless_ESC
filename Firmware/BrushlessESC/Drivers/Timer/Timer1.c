@@ -1,8 +1,8 @@
 /*!
-***     \file	  C_File1.c
-***     \ingroup  C File1
+***     \file	  ICP.c
+***     \ingroup  ICP
 ***     \author   Daniel
-***     \date	  11/23/2014 2:02:25 PM
+***     \date	  9/20/2015 2:42:03 AM
 ***     \brief    TODO
 ***
 ******************************************************************************/
@@ -10,9 +10,11 @@
 /*=============================================================================
  =======                            INCLUDES                             =======
  =============================================================================*/
-#include <stdint.h>
-#include <stdbool.h>
-#include "MovingAvgFilter.h"
+#include <avr/io.h>
+#include <avr/sfr_defs.h>
+#include <avr/interrupt.h>
+#include <util/atomic.h>
+#include "Timer1.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
  =============================================================================*/
@@ -32,41 +34,76 @@
 /* -----------------------------------------------------
  * --               Public functions                  --
  * ----------------------------------------------------- */
-void MAVG_Init(MAVG_FilterData_t filterData, uint8_t filterLen, uint16_t initValue)
+void TMR1_Init(uint8_t prescaler)
 {
-	filterData.filterLen = filterLen;
-	filterData.filterPos = 0;
-	/*memset(filterData.filterContent, initValue, sizeof(uint16_t)*filterLen);	*/
+    TIMSK1 = 0;
+    TCCR1A = 0;
+    TCCR1C = 0;
+    TCCR1B = _BV(ICNC1)|_BV(ICES1)|_BV(CS11);
+    ICP1_DDR &= ~_BV(ICP1_BIT);    
 }
 
-void MAVG_AddValue(MAVG_FilterData_t filterData, uint16_t value)
+void TMR1_EnableTimerA(uint16_t timerVal)
 {
-	filterData.filterPos++;
-	filterData.filterPos %= filterData.filterLen;
-	filterData.filterContent[filterData.filterPos] = value;
+    uint16_t temp = 0;
+    
+    /* timerVal auf aktuellen Timerwert addieren und
+    interrupt aktivieren */
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    {
+        temp = TCNT1;
+        temp += timerVal;
+        OCR1A = temp;
+    }
+    TIMSK1 |= _BV(OCIE1A);
 }
 
-uint16_t MAVG_GetResult(MAVG_FilterData_t filterData)
+void TMR1_DisableTimerA(void)
 {
-	uint8_t ctr;
-	uint32_t result = 0;
-	
-	for (ctr = 0; ctr < filterData.filterLen; ctr++)
-	{
-		/* Kein Ueberlauf möglich (255 * uint16_max < uint32_max) */
-		result += filterData.filterContent[ctr];
-	}
-	
-	result /= filterData.filterLen;
-	
-	if (UINT16_MAX < result)
-	{
-		result = UINT16_MAX;
-	}
-	
-	return (uint16_t)result;
+    /* Interrupt deaktivieren */
+    TIMSK1 &= ~_BV(OCIE1A);
 }
 
-/* -----------------------------------------------------
- * --               Private functions                  --
- * ----------------------------------------------------- */
+void TMR1_EnableTimerB(uint16_t timerVal)
+{
+    uint16_t temp;
+
+    /* timerVal auf aktuellen Timerwert addieren und
+    interrupt aktivieren */
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    {
+        temp = TCNT1;
+        temp += timerVal;
+        OCR1B = temp;
+    }
+    TIMSK1 |= _BV(OCIE1B);
+}
+
+void TMR1_DisableTimerB(void)
+{
+    /* Interrupt deaktivieren */
+    TIMSK1 &= ~_BV(OCIE1B);
+}
+
+uint16_t TMR1_GetTimerValue(void)
+{
+    uint16_t result;
+    
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    {
+        result = TCNT1;
+    }
+    
+    return result;
+}
+
+void TMR1_EnableICP(void)
+{
+    TIFR1 |= _BV(ICF1);
+    TIMSK1 |= _BV(ICIE1);    
+}
+
+void TMR1_DisableICP(void)
+{
+    TIMSK1 &= ~_BV(ICIE1);    
+}

@@ -23,7 +23,7 @@
 /*=============================================================================
 =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
 =============================================================================*/
-#define SPI_NUM_CMDS 15
+#define SPI_NUM_CMDS 12
 
 typedef enum SPI_Cmd_e
 {
@@ -32,16 +32,13 @@ typedef enum SPI_Cmd_e
 	SPI_CMD_ARM = 0x10,
 	SPI_CMD_START = 0x11,
 	SPI_CMD_STOP = 0x12,
-	SPI_CMD_SET_SPEED = 0x30,
-	SPI_CMD_SET_CUR_LIMIT = 0x31,
-	SPI_CMD_SET_VOLT_LIMIT = 0x32,
-	SPI_CMD_SET_MOTOR_CONSTANT = 0x33,
+	SPI_CMD_SAVE_CONFIG = 0x13,
+	SPI_CMD_SET_CONFIG = 0x30,
+	SPI_CMD_SET_SPEED = 0x31,
 	SPI_CMD_GET_SETSPEED = 0x40,
-	SPI_CMD_GET_CURSPEED = 0x41,
-	SPI_CMD_GET_VOLTAGE = 0x42,
-	SPI_CMD_GET_CURRENT = 0x43,
-	SPI_CMD_GET_PPM = 0x44,
-	SPI_CMD_GET_STATUS = 0x45,
+	SPI_CMD_GET_PPM = 0x41,
+	SPI_CMD_GET_STATUS = 0x42,
+	SPI_CMD_GET_CONFIG = 0x43
 }SPI_Cmd_t;
 
 typedef struct SPI_Cmd_Data_s
@@ -59,8 +56,8 @@ typedef struct SPI_Cmd_Data_s
 =======                              EXPORTS                            =======
 =============================================================================*/
 void SPI_SlaveInit(void);
-void SPI_SetTransmitBuffer(uint8_t bufLen, uint8_t *data);
-bool SPI_Cmd_Callback(uint8_t cmd, volatile uint8_t *param, uint8_t paramLen);
+void SPI_SetTransmitBuffer(uint8_t bufLen, void *data);
+bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen);
 
 /* end of storage class specifier if used with C++ */
 #ifdef  __cplusplus

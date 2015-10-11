@@ -39,7 +39,7 @@ SPI_Cmd_Data_t spi_Config[SPI_NUM_CMDS];
 /*=============================================================================
  =======                              METHODS                           =======
  =============================================================================*/
-extern bool SPI_Cmd_Callback(uint8_t cmd, volatile uint8_t *param, uint8_t paramLen);
+extern bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen);
 /* -----------------------------------------------------
  * --               Public functions                  --
  * ----------------------------------------------------- */
@@ -48,7 +48,7 @@ void SPI_SlaveInit(void)
 	SPCR = _BV(SPIE)|_BV(SPE);
 }
 
-void SPI_SetTransmitBuffer(uint8_t bufLen, uint8_t *data)
+void SPI_SetTransmitBuffer(uint8_t bufLen, void *data)
 {
 	spi_SendBufferLen = bufLen;
 	spi_SendBufferPos = 0;
@@ -68,7 +68,7 @@ uint8_t spi_GetCmdIndex(uint8_t cmd)
 	return ctr;
 }
 
-ISR(SPI_STC_vect)
+ISR(SPI_STC_vect, ISR_NOBLOCK)
 {
 	uint8_t cmdIndex = SPI_NUM_CMDS;
 	if (false == spi_CmdActive)
