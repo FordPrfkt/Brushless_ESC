@@ -51,28 +51,28 @@ void PWM_Init(void)
 	OC2B_DDR |= _BV(OC2B_BIT);
 }
 
-void PWM_Stop(void)
+inline void PWM_Stop(void)
 {
 	TCCR2B &= ~_BV(CS20)|_BV(CS21)|_BV(CS22);
 }
 
-void PWM_Start(PWM_Prescaler_t prescaler)
+inline void PWM_Start(PWM_Prescaler_t prescaler)
 {
 	TCCR2B &= ~_BV(CS20)|_BV(CS21)|_BV(CS22);
 	TCCR2B |= prescaler;
 }
 
-void PWM_SetDutyMode(void)
+inline void PWM_SetDutyMode(void)
 {
 	TCCR2A = _BV(COM2B1)|_BV(WGM20);
 }
 
-void PWM_SetFrequencyMode(void)
+inline void PWM_SetFrequencyMode(void)
 {
 	TCCR2A = _BV(COM2B0)|_BV(COM2B1)|_BV(WGM20)|_BV(WGM21);
 }
 
-void PWM_SetValue(uint8_t value)
+inline void PWM_SetValue(uint8_t value)
 {
 	OCR2A = value;
 }

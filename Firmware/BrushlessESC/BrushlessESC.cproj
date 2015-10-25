@@ -140,10 +140,19 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="BLDC_config.h">
+    <Compile Include="BLDC\BLDC.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="BLDC_SPI_Hdlr.c">
+    <Compile Include="BLDC\BLDC.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="config\BLDC_config.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="config\MotorController_config.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="config\MotorController_config.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="drivers\ACP\ACP.c">
@@ -176,9 +185,6 @@
     <Compile Include="drivers\SPI\SPI_slave.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="EEPROM\BLDC_EEPData.c">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="Filter\MovingAvgFilter.c">
       <SubType>compile</SubType>
     </Compile>
@@ -197,22 +203,25 @@
     <Compile Include="main.c">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="MotorController.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="MotorController.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="PID\PID_Controller.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="PID\PID_Controller.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="BLDC.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="BLDC.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="ServoInput\ServoInput.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="ServoInput\ServoInput.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="SPI_Handler.c">
       <SubType>compile</SubType>
     </Compile>
   </ItemGroup>
@@ -224,8 +233,9 @@
     <Folder Include="drivers\SPI" />
     <Folder Include="drivers\PWM" />
     <Folder Include="LED" />
-    <Folder Include="EEPROM" />
     <Folder Include="Filter" />
+    <Folder Include="BLDC" />
+    <Folder Include="config" />
     <Folder Include="PID" />
     <Folder Include="ServoInput" />
   </ItemGroup>

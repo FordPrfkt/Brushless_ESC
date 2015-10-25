@@ -4,8 +4,6 @@
  * Created: 07.10.2015 00:40:02
  *  Author: Daniel
  */ 
-
-
 #ifndef BLDC_CONFIG_H_
 #define BLDC_CONFIG_H_
 
@@ -48,8 +46,5 @@
 /* ADC Eingänge */
 #define BLDC_ADC_CURRENT_INPUT ADC_INPUT_ADC1
 #define BLDC_ADC_VOLTAGE_INPUT ADC_INPUT_ADC7
-
-#define BLDC_LED_BLINK_SLOW (1000) /* 1000ms */
-#define BLDC_LED_BLINK_FAST (300) /* 300ms */
 
 #endif /* BLDC_CONFIG_H_ */

@@ -1,15 +1,15 @@
 /*!
-***     \file	  SPI_slave.c
-***     \ingroup  SPI_slave
+***     \file	  MotorController.c
+***     \ingroup  MotorController
 ***     \author   Daniel
-***     \date	  9/26/2015 6:51:00 PM
+***     \date	  10/18/2015 12:53:20 AM
 ***     \brief    TODO
 ***
 ******************************************************************************/
 
 /* Header file guard symbol to prevent multiple includes */
-#ifndef SPI_slave_H_
-#define SPI_slave_H_
+#ifndef MotorController_H_
+#define MotorController_H_
 
 /* storage class specifier if used with C++ */
 #ifdef  __cplusplus
@@ -19,48 +19,38 @@
 /*=============================================================================
 =======                            INCLUDES                             =======
 =============================================================================*/
-#include <stdbool.h>
+
 /*=============================================================================
 =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
 =============================================================================*/
-#define SPI_NUM_CMDS 12
-
-typedef enum SPI_Cmd_e
-{
-	SPI_CMD_RESET = 0xA0,
-	SPI_CMD_TO_FBL = 0xB0,
-	SPI_CMD_SET_CONFIG = 0x20,
-	SPI_CMD_GET_CONFIG = 0x21,
-	SPI_CMD_SAVE_CONFIG = 0x22,
-	SPI_CMD_ARM = 0x30,
-	SPI_CMD_SET_THROTTLE = 0x31,
-	SPI_CMD_GET_THROTTLE = 0x32,
-	SPI_CMD_GET_PPM = 0x33,
-	SPI_CMD_GET_STATUS = 0x40,
-	SPI_CMD_GET_ERRORS = 0x41
-}SPI_Cmd_t;
-
-typedef struct SPI_Cmd_Data_s
-{
-	SPI_Cmd_t cmd;
-	uint8_t paramLen;
-	uint8_t resultLen;
-}SPI_Cmd_Data_t;
 
 /*=============================================================================
 =======                       CONSTANTS  &  TYPES                       =======
 =============================================================================*/
+typedef enum MC_State_e
+{
+    MC_STATE_STARTUP = 0,
+    MC_STATE_DISARMED,
+    MC_STATE_CHECK_THROTTLE,
+    MC_STATE_CALIBRATE_MAX,
+    MC_STATE_CALIBRATE_MIN,
+    MC_STATE_ARMED,
+    MC_STATE_RUNNING,
+    MC_STATE_ERROR
+}MC_State_t;
 
 /*=============================================================================
 =======                              EXPORTS                            =======
 =============================================================================*/
-void SPI_SlaveInit(void);
-void SPI_SetTransmitBuffer(uint8_t bufLen, void *data);
-bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen);
+void MC_Init(void);
+void MC_Cyclic_1ms(void);
+void MC_SetThrottleValue_SPI(uint8_t throttleInput);
+void MC_ArmSPI(void);
+uint8_t MC_GetThrottle(void);
 
 /* end of storage class specifier if used with C++ */
 #ifdef  __cplusplus
 }
 #endif
 
-#endif /*SPI_slave_H_*/
+#endif /*MotorController_H_*/

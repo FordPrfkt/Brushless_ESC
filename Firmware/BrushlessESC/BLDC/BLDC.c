@@ -16,18 +16,15 @@
 #include <avr/wdt.h>
 #include <avr/sfr_defs.h>
 #include <avr/interrupt.h>
+#include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <util/atomic.h>
-#include "Drivers/ACP/ACP.h"
-#include "Drivers/ADC/ADC.h"
-#include "Drivers/Timer/Timer1.h"
-#include "Drivers/PWM/PWM.h"
-#include "Drivers/SPI/SPI_slave.h"
-#include "Filter/MovingAvgFilter.h"
-#include "ServoInput/ServoInput.h"
-#include "PID/PID_Controller.h"
-#include "LED/LED.h"
-#include "BLDC_config.h"
+#include "../drivers/ACP/ACP.h"
+#include "../drivers/ADC/ADC.h"
+#include "../drivers/Timer/Timer1.h"
+#include "../drivers/PWM/PWM.h"
+#include "../Filter/MovingAvgFilter.h"
+#include "../config/BLDC_config.h"
 #include "BLDC.h"
 
 /*=============================================================================
@@ -84,17 +81,39 @@ Zustand 	Phase A 	Phase B 	Phase C 	Stromfluss 	Komparator-Eingänge
 Off			Floating	Floating	Floating
 Quickstop	GND 		GND 		GND
 */
-static const BLDC_CommutationState_t BLDC_CommutationStates[8] =
+
+/*                                                                      PhaseA_IN_DDR		    phaseA_IN		phaseA_SD		PhaseB_IN_DDR			phaseB_IN		phaseB_SD		PhaseC_IN_DDR			phaseC_IN		phaseC_SD		Comparator		BEMF Phase  unused */
+static const BLDC_CommutationState_t BLDC_CommutationState1 PROGMEM =  {IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED, IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC3,	PHASE_B,    0};
+static const BLDC_CommutationState_t BLDC_CommutationState2 PROGMEM =  {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC4,	PHASE_A,    0};
+static const BLDC_CommutationState_t BLDC_CommutationState3 PROGMEM =  {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,	PHASE_C,    0};
+static const BLDC_CommutationState_t BLDC_CommutationState4 PROGMEM =  {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED, IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC3,	PHASE_B,    0};
+static const BLDC_CommutationState_t BLDC_CommutationState5 PROGMEM =  {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC4,	PHASE_A,    0};
+static const BLDC_CommutationState_t BLDC_CommutationState6 PROGMEM =  {IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,	PHASE_C,    0};
+static const BLDC_CommutationState_t BLDC_CommutationOff PROGMEM =     {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,	PHASE_B,    0};
+static const BLDC_CommutationState_t BLDC_CommutationBrake PROGMEM =   {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC2,	PHASE_B,    0};
+    
+static PGM_P const BLDC_CommutationStates_CCW[8] PROGMEM =
 {
-    /* PhaseA_IN_DDR		phaseA_IN		phaseA_SD		PhaseB_IN_DDR			phaseB_IN		phaseB_SD		PhaseC_IN_DDR			phaseC_IN		phaseC_SD		Comparator		BEMF Phase */
-    {IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED, IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC3,	PHASE_B, 0},
-    {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC4,	PHASE_A, 0},
-    {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,	PHASE_C, 0},
-    {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED, IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC3,	PHASE_B, 0},
-    {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC4,	PHASE_A, 0},
-    {IN_PIN_PWM_MODE,		PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,	PHASE_C, 0},
-    {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_DISABLED,	ACP_INPUT_ADC2,	PHASE_B, 0},
-    {IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	IN_PIN_CONSTANT_MODE,	PHASE_LOW_SIDE,	PHASE_ACTIVE,	ACP_INPUT_ADC2,	PHASE_B, 0}
+    (PGM_P)&BLDC_CommutationState6,
+    (PGM_P)&BLDC_CommutationState5,
+    (PGM_P)&BLDC_CommutationState4,
+    (PGM_P)&BLDC_CommutationState3,
+    (PGM_P)&BLDC_CommutationState2,
+    (PGM_P)&BLDC_CommutationState1,
+    (PGM_P)&BLDC_CommutationOff,
+    (PGM_P)&BLDC_CommutationBrake
+};
+
+static PGM_P const BLDC_CommutationStates_CW[8] PROGMEM =
+{
+    (PGM_P)&BLDC_CommutationState1,
+    (PGM_P)&BLDC_CommutationState2,
+    (PGM_P)&BLDC_CommutationState3,
+    (PGM_P)&BLDC_CommutationState4,
+    (PGM_P)&BLDC_CommutationState5,
+    (PGM_P)&BLDC_CommutationState6,
+    (PGM_P)&BLDC_CommutationOff,
+    (PGM_P)&BLDC_CommutationBrake
 };
 
 static const BLDC_Rampup_Table_t BLDC_RampupTable[RAMPUP_STEPS] =
@@ -111,24 +130,15 @@ static const BLDC_Rampup_Table_t BLDC_RampupTable[RAMPUP_STEPS] =
 =======                VARIABLES & MESSAGES & RESSOURCEN                =======
 =============================================================================*/
 static volatile bool bldc_ZeroCrossWindowOpen = false;
-
-uint8_t bldc_PWMValue = 0;
-
 static volatile uint8_t bldc_RampupStep = 0;	/* aktueller Ramp-Up Schritt */
 static volatile uint8_t bldc_CommutationStep = 0;	/* aktueller Kommutierungsschritt */
 static volatile uint8_t bldc_FailedCommutations[3] = {0,0,0}; /* Fehlerhafte Kommutierungen pro Phase */
-
-uint16_t bldc_RPMSetpoint = 0;
-
 static volatile uint16_t bldc_tCommutationDelay = 0; /* Berechnete Verzoegerung um 30° Phasenwinkel zu erreichen */
 static volatile uint16_t bldc_tCommutation = UINT8_MAX;
 static volatile uint16_t bldc_tZeroCross = UINT8_MAX;
 static volatile uint16_t bldc_tZeroCrossWindowStart = UINT8_MAX;
 static volatile uint16_t bldc_tZeroCrossWindowStop = UINT8_MAX;
-
-static uint16_t bldc_revolutionTime = 0; /* Zaehlt die Zeit fuer eine Umdrehung (zur RPM Berechnung) */
-
-volatile BLDC_Status_t bldc_Status = 
+static volatile BLDC_Status_t bldc_Status = 
 {
     .batVoltage = 0,
     .motorCurrent = 0,
@@ -137,76 +147,56 @@ volatile BLDC_Status_t bldc_Status =
     .error = BLDC_NO_ERROR
 };
 
+static uint8_t bldc_PWMValue = 0;
+static uint16_t bldc_revolutionTime = 0; /* Zaehlt die Zeit fuer eine Umdrehung (zur RPM Berechnung) */
+static BLDC_CommutationState_t BLDC_CommutationStates[8];
 static MAVG_FilterContent_t bldc_CurrentFilter[8];
 static MAVG_FilterContent_t bldc_VoltageFilter[8];
-static MAVG_FilterContent_t bldc_PPMFilter[8];
 static MAVG_FilterData_t bldc_CurrentFilterData;
 static MAVG_FilterData_t bldc_VoltageFilterData;
-static MAVG_FilterData_t bldc_PPMFilterData;
-static pidData_t bldc_PIDData;
-extern BLDC_Config_t bldc_Config;
+static BLDC_Config_t *bldc_Config;
 
 /*=============================================================================
 =======                              METHODS                           =======
 =============================================================================*/
 static void bldc_SetCommutation(uint8_t commutationStep);
-void bldc_Beep(uint16_t freq, uint16_t duration);
-extern void bldc_ReadConfigData(void);
-extern void bldc_WriteConfigData(void);
-extern void bldc_StoreError(BLDC_Error_t error);
+static void bldc_SetError(BLDC_Error_t error);
 
 /* -----------------------------------------------------
 * --               Public functions                  --
 * ----------------------------------------------------- */
 
-void BLDC_Init(void)
+void BLDC_Init(BLDC_Config_t *config_p)
 {
-    wdt_enable(WDTO_500MS);
-
+    uint8_t ctr;
+    bldc_Config = config_p;
+    
     /* DDR und status der Digitalausgänge einstellen */
     PORT_BLDC &= ~(_BV(PIN_PHASE_A_SD)|_BV(PIN_PHASE_B_SD)|_BV(PIN_PHASE_C_SD)|_BV(PIN_PHASE_A_IN)|_BV(PIN_PHASE_B_IN)|_BV(PIN_PHASE_C_IN));
     DDR_BLDC |= (_BV(DDRBIT_PHASE_A_IN)|_BV(DDRBIT_PHASE_B_IN)|_BV(DDRBIT_PHASE_C_IN)|_BV(DDRBIT_PHASE_A_SD)|_BV(DDRBIT_PHASE_B_SD)|_BV(DDRBIT_PHASE_C_SD));
         
-    /* Resetgrund lesen und ggf. speichern */
-    if ((MCUSR & WDRF) == WDRF)
-    {
-        /* Watchdog Reset */
-        bldc_StoreError(BLDC_ERROR_WDG_RESET);
-        MCUSR |= WDRF;
-    }
-    
-    if ((MCUSR & WDRF) == BORF)
-    {
-        /* Brownout Reset */
-        bldc_StoreError(BLDC_ERROR_BROWNOUT_RESET);
-        MCUSR |= BORF;
-    }
-
     bldc_CurrentFilterData.filterContent = bldc_CurrentFilter;
     bldc_VoltageFilterData.filterContent = bldc_VoltageFilter;
-    bldc_PPMFilterData.filterContent = bldc_PPMFilter;
 
     MAVG_Init(&bldc_CurrentFilterData, 8, 0);
     MAVG_Init(&bldc_VoltageFilterData, 8, 0);
-    MAVG_Init(&bldc_PPMFilterData, 3, 0);
     
-    pid_Init(1, 1, 1, &bldc_PIDData);
+    if (BLDC_DIR_CW == bldc_Config->direction)
+    {
+        for (ctr = 0; ctr < 8; ctr++)
+        {
+            memcpy_P(&BLDC_CommutationStates[ctr], pgm_read_ptr(BLDC_CommutationStates_CW[ctr]), sizeof(BLDC_CommutationState_t));
+        }        
+    }
+    else
+    {
+        for (ctr = 0; ctr < 8; ctr++)
+        {
+            memcpy_P(&BLDC_CommutationStates[ctr], pgm_read_ptr(BLDC_CommutationStates_CCW[ctr]), sizeof(BLDC_CommutationState_t));
+        }        
+    }
     
-    bldc_ReadConfigData();
-}
-
-void BLDC_Start(void)
-{
-    SVI_Start();
-    PWM_Start(0);
-    
-    pid_Reset_Integrator(&bldc_PIDData);
     BLDC_StopMotor(false);
-    
-    wdt_reset();
-    bldc_Beep(1000, 300);
-    
-    LED_Blink(BLDC_LED_BLINK_SLOW);
 }
 
 void BLDC_StartMotor(void)
@@ -221,10 +211,10 @@ void BLDC_StartMotor(void)
         }
             
         /* Initialen PWM Wert setzen, Kommutierung bei 0 beginnen */
+        PWM_Start(PWM_PRESCALER_1024);
         PWM_SetValue(ALIGN_PWM);
         bldc_SetCommutation(0);
         TMR1_EnableTimerA(ALIGN_TIME);
-        LED_Blink(BLDC_LED_BLINK_FAST);
     }
 }
 
@@ -232,19 +222,24 @@ void BLDC_StopMotor(bool quickstop)
 {
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
     {
+        /* Kommutierung abschalten */
         if (true == quickstop)
         {
+            /* Schnellstop = Alle Phasen nach GND */
             bldc_SetCommutation(BLDC_COMMUTATION_QUICKSTOP);
         }
         else
         {
+            /* Alle Phasen floatend */
             bldc_SetCommutation(BLDC_COMMUTATION_OFF);
         }
         
         /* Alles stoppen */
+        PWM_Stop();
         TMR1_DisableTimerA();
         TMR1_DisableTimerB();
         ACP_Disable();
+
         ADC_Enable();
         
         bldc_Status.curState = BLDC_STATE_STOP;
@@ -253,33 +248,39 @@ void BLDC_StopMotor(bool quickstop)
 }
 
 void BLDC_Mainfunction(void)
-{
-    /* Spannung prüfen */
+{      
     /* Strom prüfen */
-    /* PPM Sollwert holen */
-    /* Motordrehzahl berechnen */
-    
+    /* Motordrehzahl berechnen */   
     bldc_Status.batVoltage = MAVG_GetResult(&bldc_VoltageFilterData);
     bldc_Status.motorCurrent = MAVG_GetResult(&bldc_CurrentFilterData);
-
+    
+    /* Spannung prüfen */
+    if (bldc_Status.batVoltage >= bldc_Config->maxVoltage)
+    {
+        /* Überspannung */
+        BLDC_StopMotor(true);
+        bldc_SetError(BLDC_ERROR_OVERVOLTAGE);                
+    }
+    else if (bldc_Status.batVoltage <= bldc_Config->minVoltage)
+    {
+        /* Unterspannung */
+        BLDC_StopMotor(true);
+        bldc_SetError(BLDC_ERROR_UNDERVOLTAGE);        
+    }
+    else
+    {
+        /* Spannung OK */
+    }
+    
     switch (bldc_Status.curState)
     {
         case BLDC_STATE_STOP:
-        break;
-        
         case BLDC_STATE_ALIGN:
-        break;
-        
         case BLDC_STATE_RAMP_UP:
-        break;
-
         case BLDC_STATE_LAST_RAMP_UP:
-        /* Regler initialisieren... */
-        pid_Reset_Integrator(&bldc_PIDData);
         break;
 
-        case BLDC_STATE_RUNNING:
-        
+        case BLDC_STATE_RUNNING:      
         /* Regler, PWM Sollwertvorgabe */
         /*		bldc_PWMValue = pid_Controller(int16_t setPoint, int16_t processValue, struct PID_DATA *pid_st);*/
         PWM_SetValue(bldc_PWMValue);
@@ -290,41 +291,78 @@ void BLDC_Mainfunction(void)
         (bldc_FailedCommutations[2] >= 6))
         {
             BLDC_StopMotor(true);
-            /* TODO: Fehler setzen */
+
+            /* Fehler speichern */
+            if (bldc_FailedCommutations[0] >= 6)
+            {
+                bldc_SetError(BLDC_ERROR_NO_BEMF_A);                
+            }
+            if (bldc_FailedCommutations[1] >= 6)
+            {
+                bldc_SetError(BLDC_ERROR_NO_BEMF_B);
+            }
+            if (bldc_FailedCommutations[2] >= 6)
+            {
+                bldc_SetError(BLDC_ERROR_NO_BEMF_C);
+            }
         }
         break;
 
         default:
         /* Your code here */
         break;
-    }
-    
-    wdt_reset();
+    }    
 }
 
-/* -----------------------------------------------------
-* --               Private functions                  --
-* ----------------------------------------------------- */
-void bldc_Beep(uint16_t freq, uint16_t duration)
+void BLDC_Beep(uint16_t freq, uint16_t duration)
 {
     uint16_t ctr;
+    
+    /* "Piepen" geht nur wenn der Motor steht */
     if (BLDC_STATE_STOP == bldc_Status.curState)
     {
+        /* PWM in den Frequenzmodus schalten
+         * (50% Duty und Frequenzvorgabe) */
         PWM_Stop();
         PWM_SetFrequencyMode();
         PWM_SetValue(freq);
-        PWM_Start(0);
-        
+
+        /* Frequenz ausgeben, feste Kommutierung */
+        PWM_Start(PWM_PRESCALER_1024);      
         bldc_SetCommutation(0);
         for (ctr = 0; ctr < duration; ctr++)
         {
             _delay_ms(1);
+            wdt_reset();
         }
+        
+        /* Nach der Wartezeit, kommutierung abschalten */
         bldc_SetCommutation(BLDC_COMMUTATION_OFF);
         
+        /* PWM wieder in den Duty Cycle Mode schalten (feste Frequenz) */
         PWM_Stop();
         PWM_SetDutyMode();
+        PWM_SetValue(0);
+        PWM_Start(PWM_PRESCALER_1024);
     }
+}
+
+volatile BLDC_Status_t* BLDC_GetStatus(void)
+{
+    return &bldc_Status;    
+}
+
+BLDC_Config_t* BLDC_GetConfig(void)
+{
+    return bldc_Config;
+}
+/* -----------------------------------------------------
+* --               Private functions                  --
+* ----------------------------------------------------- */
+void bldc_SetError(BLDC_Error_t error)
+{
+    bldc_Status.error = error;
+    BLDC_StopMotor(true);
 }
 
 void bldc_SetCommutation(uint8_t commutationStep)
@@ -344,10 +382,12 @@ void bldc_SetCommutation(uint8_t commutationStep)
     portByte &= ~(_BV(PIN_PHASE_A_SD)|_BV(PIN_PHASE_B_SD)|_BV(PIN_PHASE_C_SD)|
     _BV(PIN_PHASE_A_IN)|_BV(PIN_PHASE_B_IN)|_BV(PIN_PHASE_C_IN));
     
+    /* SD pin */
     portByte |= _BV(BLDC_CommutationStates[commutationStep].phaseA_SD)|
     _BV(BLDC_CommutationStates[commutationStep].phaseB_SD)|
     _BV(BLDC_CommutationStates[commutationStep].phaseC_SD);
     
+    /* IN pin */
     portByte |= _BV(BLDC_CommutationStates[commutationStep].phaseA_IN)|
     _BV(BLDC_CommutationStates[commutationStep].phaseB_IN)|
     _BV(BLDC_CommutationStates[commutationStep].phaseC_IN);
@@ -433,8 +473,6 @@ ISR(TIMER1_COMPA_vect)
         
         /* Fenster zum Nulldurchgang starten */
         TMR1_EnableTimerB(bldc_tZeroCrossWindowStart);
-        
-        LED_Off();
         break;
 
         case BLDC_STATE_RUNNING:
@@ -483,7 +521,8 @@ ISR(TIMER1_COMPB_vect)
     if (true == bldc_ZeroCrossWindowOpen)
     {
         /* ...wurde innerhalb des Fensters kein gültiger Nulldurchgang erkannt.
-                    Fehlerzähler für die aktuelle Phase inkrementieren. */
+           Fehlerzähler für die aktuelle Phase inkrementieren.
+        */
         bldc_FailedCommutations[BLDC_CommutationStates[bldc_CommutationStep].BEMFPhase]++;
         bldc_ZeroCrossWindowOpen = false;
 
@@ -552,21 +591,20 @@ ISR(ANALOG_COMP_vect)
 
 ISR(ADC_vect)
 {
-    uint16_t adValue;
-    ADC_Input_t adcInput;
-    adValue = ADC_GetConversionResult();
-    adcInput = ADC_GetSelectedInput();
-    
-    if (BLDC_ADC_CURRENT_INPUT == adcInput)
+    /* AD Wert fuer Strom bzw. Spannung
+     * vom ADC holen und filtern.
+     */
+    switch (ADC_GetSelectedInput())
     {
-        MAVG_AddValue(&bldc_CurrentFilterData, adValue);
-    }
-    else if (BLDC_ADC_VOLTAGE_INPUT == adcInput)
-    {
-        MAVG_AddValue(&bldc_VoltageFilterData, adValue);        
-    }
-    else
-    {
-        /* Nichts zu tun */
+        case BLDC_ADC_CURRENT_INPUT:
+        MAVG_AddValue(&bldc_CurrentFilterData, ADC_GetConversionResult());
+        break;
+        
+        case BLDC_ADC_VOLTAGE_INPUT:
+        MAVG_AddValue(&bldc_VoltageFilterData, ADC_GetConversionResult());        
+        break;
+        
+        default:
+        break;
     }
 }

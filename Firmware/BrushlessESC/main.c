@@ -12,9 +12,10 @@
  =============================================================================*/
 #include <stdint.h>
 #include <stdbool.h>
-#include <avr/signature.h>
 #include <avr/io.h>
+#include <avr/wdt.h>
 #include <avr/sfr_defs.h>
+#include <avr/signature.h>
 #include <avr/interrupt.h>
 #include "drivers/ACP/ACP.h"
 #include "drivers/ADC/ADC.h"
@@ -23,7 +24,8 @@
 #include "drivers/SPI/SPI_slave.h"
 #include "ServoInput/ServoInput.h"
 #include "LED/LED.h"
-#include "BLDC.h"
+#include "BLDC/BLDC.h"
+#include "MotorController.h"
 
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
@@ -57,16 +59,31 @@ int main(void)
 	TMR1_Init(0);
     LED_Init();
 	SVI_Init();
-
-	BLDC_Init();
-	BLDC_Start();
-
+    MC_Init();
+    
     /* 1ms Timer0 starten */
     TCCR0A = 0;
     TCCR0B = TIMER0_PRESCALER64(); /* Prescaler 64 */
     OCR0B = TIMER0_1MS();
     TIMSK0 = _BV(OCIE0B);
     TCNT0 = 0;
+
+    wdt_enable(WDTO_500MS);
+
+    /* Resetgrund lesen und ggf. speichern */
+    if ((MCUSR & WDRF) == WDRF)
+    {
+        /* Watchdog Reset */
+        bldc_StoreError(BLDC_ERROR_WDG_RESET);
+        MCUSR |= WDRF;
+    }
+    
+    if ((MCUSR & WDRF) == BORF)
+    {
+        /* Brownout Reset */
+        bldc_StoreError(BLDC_ERROR_BROWNOUT_RESET);
+        MCUSR |= BORF;
+    }
 
 	do 
 	{
@@ -76,6 +93,9 @@ int main(void)
         }
         
 		BLDC_Mainfunction();
+        MC_Cyclic_1ms();
+        
+        wdt_reset();
 	} while (1);
 }
 /* -----------------------------------------------------

@@ -1,15 +1,15 @@
 /*!
-***     \file	  SPI_slave.c
-***     \ingroup  SPI_slave
+***     \file	  MotorController_config.c
+***     \ingroup  MotorController_config
 ***     \author   Daniel
-***     \date	  9/26/2015 6:51:00 PM
+***     \date	  10/18/2015 11:02:58 PM
 ***     \brief    TODO
 ***
 ******************************************************************************/
 
 /* Header file guard symbol to prevent multiple includes */
-#ifndef SPI_slave_H_
-#define SPI_slave_H_
+#ifndef MotorController_config_H_
+#define MotorController_config_H_
 
 /* storage class specifier if used with C++ */
 #ifdef  __cplusplus
@@ -19,48 +19,45 @@
 /*=============================================================================
 =======                            INCLUDES                             =======
 =============================================================================*/
-#include <stdbool.h>
+
 /*=============================================================================
 =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
 =============================================================================*/
-#define SPI_NUM_CMDS 12
+#define MC_MIN_PULSE_DURATION (750) /* Min. Pulsdauer in µs */
+#define MC_MAX_PULSE_DURATION (2250) /* Max. Pulsdauer in µs */
+#define MC_THROTTLE_CAL_MAX_JITTER (10)
+#define MC_CHECK_CAL_TIME (1000)
+#define MC_ARMING_TIMEOUT (10000)
+#define MC_CALIBRATE_TIME (2000)
+#define MC_CALIBRATION_TIMEOUT (10000)
 
-typedef enum SPI_Cmd_e
-{
-	SPI_CMD_RESET = 0xA0,
-	SPI_CMD_TO_FBL = 0xB0,
-	SPI_CMD_SET_CONFIG = 0x20,
-	SPI_CMD_GET_CONFIG = 0x21,
-	SPI_CMD_SAVE_CONFIG = 0x22,
-	SPI_CMD_ARM = 0x30,
-	SPI_CMD_SET_THROTTLE = 0x31,
-	SPI_CMD_GET_THROTTLE = 0x32,
-	SPI_CMD_GET_PPM = 0x33,
-	SPI_CMD_GET_STATUS = 0x40,
-	SPI_CMD_GET_ERRORS = 0x41
-}SPI_Cmd_t;
-
-typedef struct SPI_Cmd_Data_s
-{
-	SPI_Cmd_t cmd;
-	uint8_t paramLen;
-	uint8_t resultLen;
-}SPI_Cmd_Data_t;
+#define MC_PWM_STEPS (255)
+#define MC_LOOP_INTERVAL (1)
 
 /*=============================================================================
 =======                       CONSTANTS  &  TYPES                       =======
 =============================================================================*/
+typedef struct MC_Config_s 
+{
+    uint16_t throttleOffDuration;
+    uint16_t throttleFullDuration;
+    uint16_t checkThrottleTime;
+    uint16_t throttleTimeout;
+    uint8_t minThrottle;
+    uint8_t maxThrottle;
+}MC_Config_t;
 
 /*=============================================================================
 =======                              EXPORTS                            =======
 =============================================================================*/
-void SPI_SlaveInit(void);
-void SPI_SetTransmitBuffer(uint8_t bufLen, void *data);
-bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen);
+extern MC_Config_t MC_ConfigDataEE; 
+extern BLDC_Error_t MC_ErrorMemoryEE[];
+extern uint8_t MC_LastErrorEE;
+extern BLDC_Config_t MC_bldcConfigDataEE;
 
 /* end of storage class specifier if used with C++ */
 #ifdef  __cplusplus
 }
 #endif
 
-#endif /*SPI_slave_H_*/
+#endif /*MotorController_config_H_*/

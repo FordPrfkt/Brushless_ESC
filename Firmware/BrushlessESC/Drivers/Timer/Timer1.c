@@ -43,7 +43,7 @@ void TMR1_Init(uint8_t prescaler)
     ICP1_DDR &= ~_BV(ICP1_BIT);    
 }
 
-void TMR1_EnableTimerA(uint16_t timerVal)
+inline void TMR1_EnableTimerA(uint16_t timerVal)
 {
     uint16_t temp = 0;
     
@@ -58,13 +58,13 @@ void TMR1_EnableTimerA(uint16_t timerVal)
     TIMSK1 |= _BV(OCIE1A);
 }
 
-void TMR1_DisableTimerA(void)
+inline void TMR1_DisableTimerA(void)
 {
     /* Interrupt deaktivieren */
     TIMSK1 &= ~_BV(OCIE1A);
 }
 
-void TMR1_EnableTimerB(uint16_t timerVal)
+inline void TMR1_EnableTimerB(uint16_t timerVal)
 {
     uint16_t temp;
 
@@ -79,13 +79,13 @@ void TMR1_EnableTimerB(uint16_t timerVal)
     TIMSK1 |= _BV(OCIE1B);
 }
 
-void TMR1_DisableTimerB(void)
+inline void TMR1_DisableTimerB(void)
 {
     /* Interrupt deaktivieren */
     TIMSK1 &= ~_BV(OCIE1B);
 }
 
-uint16_t TMR1_GetTimerValue(void)
+inline uint16_t TMR1_GetTimerValue(void)
 {
     uint16_t result;
     
@@ -97,13 +97,13 @@ uint16_t TMR1_GetTimerValue(void)
     return result;
 }
 
-void TMR1_EnableICP(void)
+inline void TMR1_EnableICP(void)
 {
     TIFR1 |= _BV(ICF1);
     TIMSK1 |= _BV(ICIE1);    
 }
 
-void TMR1_DisableICP(void)
+inline void TMR1_DisableICP(void)
 {
     TIMSK1 &= ~_BV(ICIE1);    
 }

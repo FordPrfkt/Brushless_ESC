@@ -40,27 +40,29 @@ SUBDIRS :=  \
 ../drivers/SPI \
 ../drivers/PWM \
 ../LED \
-../EEPROM \
 ../Filter \
+../BLDC \
+../config \
 ../PID \
 ../ServoInput
 
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS +=  \
-../BLDC_SPI_Hdlr.c \
+../BLDC/BLDC.c \
+../config/MotorController_config.c \
 ../drivers/ACP/ACP.c \
 ../drivers/ADC/ADC.c \
 ../drivers/Timer/Timer1.c \
 ../drivers/PWM/PWM.c \
 ../drivers/SPI/SPI_slave.c \
-../EEPROM/BLDC_EEPData.c \
 ../Filter/MovingAvgFilter.c \
 ../LED/LED.c \
 ../main.c \
+../MotorController.c \
 ../PID/PID_Controller.c \
-../BLDC.c \
-../ServoInput/ServoInput.c
+../ServoInput/ServoInput.c \
+../SPI_Handler.c
 
 
 PREPROCESSING_SRCS += 
@@ -70,64 +72,68 @@ ASM_SRCS +=
 
 
 OBJS +=  \
-BLDC_SPI_Hdlr.o \
+BLDC/BLDC.o \
+config/MotorController_config.o \
 drivers/ACP/ACP.o \
 drivers/ADC/ADC.o \
 drivers/Timer/Timer1.o \
 drivers/PWM/PWM.o \
 drivers/SPI/SPI_slave.o \
-EEPROM/BLDC_EEPData.o \
 Filter/MovingAvgFilter.o \
 LED/LED.o \
 main.o \
+MotorController.o \
 PID/PID_Controller.o \
-BLDC.o \
-ServoInput/ServoInput.o
+ServoInput/ServoInput.o \
+SPI_Handler.o
 
 OBJS_AS_ARGS +=  \
-BLDC_SPI_Hdlr.o \
+BLDC/BLDC.o \
+config/MotorController_config.o \
 drivers/ACP/ACP.o \
 drivers/ADC/ADC.o \
 drivers/Timer/Timer1.o \
 drivers/PWM/PWM.o \
 drivers/SPI/SPI_slave.o \
-EEPROM/BLDC_EEPData.o \
 Filter/MovingAvgFilter.o \
 LED/LED.o \
 main.o \
+MotorController.o \
 PID/PID_Controller.o \
-BLDC.o \
-ServoInput/ServoInput.o
+ServoInput/ServoInput.o \
+SPI_Handler.o
 
 C_DEPS +=  \
-BLDC_SPI_Hdlr.d \
+BLDC/BLDC.d \
+config/MotorController_config.d \
 drivers/ACP/ACP.d \
 drivers/ADC/ADC.d \
 drivers/Timer/Timer1.d \
 drivers/PWM/PWM.d \
 drivers/SPI/SPI_slave.d \
-EEPROM/BLDC_EEPData.d \
 Filter/MovingAvgFilter.d \
 LED/LED.d \
 main.d \
+MotorController.d \
 PID/PID_Controller.d \
-BLDC.d \
-ServoInput/ServoInput.d
+ServoInput/ServoInput.d \
+SPI_Handler.d
 
 C_DEPS_AS_ARGS +=  \
-BLDC_SPI_Hdlr.d \
+BLDC/BLDC.d \
+config/MotorController_config.d \
 drivers/ACP/ACP.d \
 drivers/ADC/ADC.d \
 drivers/Timer/Timer1.d \
 drivers/PWM/PWM.d \
 drivers/SPI/SPI_slave.d \
-EEPROM/BLDC_EEPData.d \
 Filter/MovingAvgFilter.d \
 LED/LED.d \
 main.d \
+MotorController.d \
 PID/PID_Controller.d \
-BLDC.d \
-ServoInput/ServoInput.d
+ServoInput/ServoInput.d \
+SPI_Handler.d
 
 OUTPUT_FILE_PATH +=BrushlessESC.elf
 
@@ -170,7 +176,16 @@ LINKER_SCRIPT_DEP+=
 
 
 
-./%.o: .././%.c
+
+
+BLDC/%.o: ../BLDC/%.c
+	@echo Building file: $<
+	@echo Invoking: AVR/GNU C Compiler : 4.9.2
+	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG -DF_CPU=16000000  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.90\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega88pa -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.90\gcc\dev\atmega88pa" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
+	@echo Finished building: $<
+	
+
+config/%.o: ../config/%.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 4.9.2
 	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG -DF_CPU=16000000  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.90\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega88pa -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.90\gcc\dev\atmega88pa" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
@@ -212,13 +227,6 @@ drivers/SPI/%.o: ../drivers/SPI/%.c
 	@echo Finished building: $<
 	
 
-EEPROM/%.o: ../EEPROM/%.c
-	@echo Building file: $<
-	@echo Invoking: AVR/GNU C Compiler : 4.9.2
-	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG -DF_CPU=16000000  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.90\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega88pa -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.90\gcc\dev\atmega88pa" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
-	@echo Finished building: $<
-	
-
 Filter/%.o: ../Filter/%.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 4.9.2
@@ -227,6 +235,13 @@ Filter/%.o: ../Filter/%.c
 	
 
 LED/%.o: ../LED/%.c
+	@echo Building file: $<
+	@echo Invoking: AVR/GNU C Compiler : 4.9.2
+	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG -DF_CPU=16000000  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.90\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega88pa -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.90\gcc\dev\atmega88pa" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
+	@echo Finished building: $<
+	
+
+./%.o: .././%.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 4.9.2
 	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG -DF_CPU=16000000  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.90\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega88pa -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.90\gcc\dev\atmega88pa" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 

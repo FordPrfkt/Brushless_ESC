@@ -30,52 +30,49 @@
 /*=============================================================================
  =======                VARIABLES & MESSAGES & RESSOURCEN                =======
  =============================================================================*/
-extern BLDC_Config_t bldc_Config;
-uint16_t bldc_RPMSetpopint;
+uint16_t tempU16;
+uint8_t tempU8;
+
 /*=============================================================================
  =======                              METHODS                           =======
  =============================================================================*/
-extern void bldc_WriteConfigData(void);
+
 /* -----------------------------------------------------
  * --               Public functions                  --
  * ----------------------------------------------------- */
 bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen)
 {
 	bool result = false;
-	
+	BLDC_Status_t *bldcStatus_p;
+    
+    bldcStatus_p = BLDC_GetStatus();
+        
 	switch (cmd)
 	{
 		case SPI_CMD_RESET:
 		/* Reset */
+		if (bldcStatus_p->curState == BLDC_STATE_STOP)
+		{
+            do 
+            {
+                asm("NOP");
+            } while (1);
+        }        
 		break;
 		
 		case SPI_CMD_TO_FBL:
 		/* FBL Byte setzen, Reset  */
+		if (bldcStatus_p->curState == BLDC_STATE_STOP)
+		{
+        }            
 		break;
 		
 		case SPI_CMD_ARM:
-		if (bldc_Status.curState == BLDC_STATE_STOP)
-		{
-			
-		}
+        MC_ArmSPI();
 		break;
-		
-		case SPI_CMD_START:
-		if (bldc_Status.curState == BLDC_STATE_STOP)
-		{
 			
-		}
-		break;
-		
-		case SPI_CMD_STOP:
-		if (bldc_Status.curState != BLDC_STATE_STOP)
-		{
-			
-		}
-		break;
-		
 		case SPI_CMD_SAVE_CONFIG:
-		if (bldc_Status.curState != BLDC_STATE_STOP)
+		if (bldcStatus_p->curState != BLDC_STATE_STOP)
 		{
 			bldc_WriteConfigData();
 			result = true;
@@ -83,36 +80,41 @@ bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen)
 		break;
 
 		case SPI_CMD_SET_CONFIG:
-		if (bldc_Status.curState == BLDC_STATE_STOP)
+		if (bldcStatus_p->curState == BLDC_STATE_STOP)
 		{
 			
 		}
 		break;
-		
-		case SPI_CMD_SET_SPEED:
-		result = true;
-		bldc_RPMSetpopint = *((uint16_t*)param);
+
+		case SPI_CMD_SET_THROTTLE:
+        if (1 == paramLen)
+        {
+            MC_SetThrottleValue_SPI(param[0]);            
+        }
 		break;
-		
-		case SPI_CMD_GET_SETSPEED:
+
+		case SPI_CMD_GET_THROTTLE:
 		result = true;
-		SPI_SetTransmitBuffer(sizeof(bldc_RPMSetpopint), (void*)&bldc_RPMSetpopint);
+        tempU8 = MC_GetThrottle();
+        SPI_SetTransmitBuffer(sizeof(uint8_t), (void*)&tempU8);
 		break;
-		
+				
 		case SPI_CMD_GET_PPM:
 		result = true;
-		SPI_SetTransmitBuffer(sizeof(bldc_PWMValue), (void*)&bldc_PWMValue);
+        tempU16 = SVI_GetPulseDuration();
+		SPI_SetTransmitBuffer(sizeof(uint16_t), (void*)&tempU16);
 		break;
 		
 		case SPI_CMD_GET_STATUS:
 		result = true;
-		SPI_SetTransmitBuffer(sizeof(bldc_Status), (void*)&bldc_Status);
+		SPI_SetTransmitBuffer(sizeof(bldc_Status), (void*)bldcStatus_p);
 		break;
 		
 		case SPI_CMD_GET_CONFIG:
-		if (bldc_Status.curState == BLDC_STATE_STOP)
+		if (bldcStatus_p->curState == BLDC_STATE_STOP)
 		{
-			SPI_SetTransmitBuffer(sizeof(bldc_Config), (void*)&bldc_Config);	
+			SPI_SetTransmitBuffer(sizeof(bldc_Config), (void*)BLDC_GetConfig());
+            result = true;
 		}
 		break;
 		
