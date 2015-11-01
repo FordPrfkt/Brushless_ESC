@@ -19,7 +19,7 @@
 /*=============================================================================
 =======                            INCLUDES                             =======
 =============================================================================*/
-
+#include "config/MotorController_config.h"
 /*=============================================================================
 =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
 =============================================================================*/
@@ -39,6 +39,16 @@ typedef enum MC_State_e
     MC_STATE_ERROR
 }MC_State_t;
 
+typedef enum MC_Error_e
+{
+    MC_NO_ERROR = 0,
+	MC_ERROR_NO_SIGNAL = MC_ERROR_ID,
+	MC_ERROR_WDG_RESET = MC_ERROR_ID + 1,
+	MC_ERROR_BROWNOUT_RESET = MC_ERROR_ID + 2,
+    MC_ERROR_ARMING_TIMEOUT = MC_ERROR_ID + 3,
+    MC_ERROR_CAL_TIMEOUT = MC_ERROR_ID + 4,
+    MC_ERROR_INTERNAL = MC_ERROR_ID + 5
+}MC_Error_t;
 /*=============================================================================
 =======                              EXPORTS                            =======
 =============================================================================*/
@@ -47,6 +57,7 @@ void MC_Cyclic_1ms(void);
 void MC_SetThrottleValue_SPI(uint8_t throttleInput);
 void MC_ArmSPI(void);
 uint8_t MC_GetThrottle(void);
+void MC_GetErrorMemory(uint8_t errorMem[], uint8_t *lastError);
 
 /* end of storage class specifier if used with C++ */
 #ifdef  __cplusplus
@@ -54,3 +65,4 @@ uint8_t MC_GetThrottle(void);
 #endif
 
 #endif /*MotorController_H_*/
+/* EOF */

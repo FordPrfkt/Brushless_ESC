@@ -50,3 +50,4 @@ uint16_t MAVG_GetResult(MAVG_FilterData_t *filterData);
 #endif
 
 #endif /*H_File1_H_*/
+/* EOF */

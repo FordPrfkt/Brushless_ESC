@@ -20,3 +20,5 @@ void SVI_Stop(void);
 uint16_t SVI_GetPulseDuration(void);
 
 #endif /* SERVO_INPUT_H_ */
+
+/* EOF */

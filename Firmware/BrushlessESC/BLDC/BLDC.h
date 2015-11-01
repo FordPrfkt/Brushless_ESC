@@ -19,6 +19,7 @@
 /*=============================================================================
 =======                            INCLUDES                             =======
 =============================================================================*/
+#include "../config/BLDC_config.h"
 
 /*=============================================================================
 =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
@@ -43,15 +44,13 @@ typedef enum BLDC_LimitMode_e
 typedef enum BLDC_Error_e
 {
 	BLDC_NO_ERROR = 0,
-	BLDC_ERROR_OVERCURRENT,
-	BLDC_ERROR_OVERVOLTAGE,
-	BLDC_ERROR_UNDERVOLTAGE,
-	BLDC_ERROR_NO_SIGNAL,
-	BLDC_ERROR_WDG_RESET,
-	BLDC_ERROR_BROWNOUT_RESET,
-	BLDC_ERROR_NO_BEMF_A,
-	BLDC_ERROR_NO_BEMF_B,
-	BLDC_ERROR_NO_BEMF_C
+	BLDC_ERROR_OVERCURRENT = BLDC_ERROR_ID,
+	BLDC_ERROR_OVERVOLTAGE = BLDC_ERROR_ID + 1,
+	BLDC_ERROR_UNDERVOLTAGE = BLDC_ERROR_ID + 2,
+	BLDC_ERROR_NO_BEMF_A = BLDC_ERROR_ID + 3,
+	BLDC_ERROR_NO_BEMF_B = BLDC_ERROR_ID + 4,
+	BLDC_ERROR_NO_BEMF_C = BLDC_ERROR_ID + 5,
+    BLDC_ERROR_MODE = BLDC_ERROR_ID + 6
 }BLDC_Error_t;
 
 typedef enum BLDC_State_e

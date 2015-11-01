@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <avr/io.h>
 #include <avr/sfr_defs.h>
-#include "LED_config.h"
+#include "../config/LED_config.h"
 #include "LED.h"
 
 /*=============================================================================
@@ -82,3 +82,5 @@ void LED_Blink(uint16_t interval)
 /* -----------------------------------------------------
  * --               Private functions                  --
  * ----------------------------------------------------- */
+
+/* EOF */

@@ -356,13 +356,22 @@ BLDC_Config_t* BLDC_GetConfig(void)
 {
     return bldc_Config;
 }
+
+void BLDC_SetPower(uint8_t power)
+{
+    bldc_PWMValue = power;
+}
+
 /* -----------------------------------------------------
 * --               Private functions                  --
 * ----------------------------------------------------- */
 void bldc_SetError(BLDC_Error_t error)
 {
-    bldc_Status.error = error;
-    BLDC_StopMotor(true);
+    if (bldc_Status.error == BLDC_NO_ERROR)
+    {
+        bldc_Status.error = error;
+        BLDC_StopMotor(true);        
+    }
 }
 
 void bldc_SetCommutation(uint8_t commutationStep)
@@ -408,109 +417,108 @@ ISR(TIMER1_COMPA_vect)
     switch (bldc_Status.curState)
     {
         case BLDC_STATE_STOP:
-        /* Nichts zu tun */
+            /* Nichts zu tun */
         break;
         
         case BLDC_STATE_ALIGN:
-        /* Align Timeout rum, in den Ramp Up Modus wechseln */
-        bldc_Status.curState = BLDC_STATE_RAMP_UP;
-        bldc_RampupStep = 0;
+            /* Align Timeout rum, in den Ramp Up Modus wechseln */
+            bldc_Status.curState = BLDC_STATE_RAMP_UP;
+            bldc_RampupStep = 0;
         
-        /* Kommutierung einen Schritt weiterschalten und PWM aktivieren */
-        PWM_SetValue(BLDC_RampupTable[bldc_RampupStep].pwmDuty);
-        TMR1_EnableTimerA(BLDC_RampupTable[bldc_RampupStep].commutationTime);
-        bldc_SetCommutation(1);
+            /* Kommutierung einen Schritt weiterschalten und PWM aktivieren */
+            PWM_SetValue(BLDC_RampupTable[bldc_RampupStep].pwmDuty);
+            TMR1_EnableTimerA(BLDC_RampupTable[bldc_RampupStep].commutationTime);
+            bldc_SetCommutation(1);
         break;
 
         case BLDC_STATE_RAMP_UP:
-        /* Ein Ramp-Up increment ist abgelaufen, Kommutierung weiterschalten */
-        newCommutation = bldc_CommutationStep++;
-        newCommutation %= 6;
+            /* Ein Ramp-Up increment ist abgelaufen, Kommutierung weiterschalten */
+            newCommutation = bldc_CommutationStep++;
+            newCommutation %= 6;
         
-        /* Wenn alle Schritt abgelaufen sind, in den nächsten State wechseln */
-        if (++bldc_RampupStep == (RAMPUP_STEPS - 1))
-        {
-            bldc_Status.curState = BLDC_STATE_LAST_RAMP_UP;
-        }
+            /* Wenn alle Schritt abgelaufen sind, in den nächsten State wechseln */
+            if (++bldc_RampupStep == (RAMPUP_STEPS - 1))
+            {
+                bldc_Status.curState = BLDC_STATE_LAST_RAMP_UP;
+            }
         
-        /* PWM sollwert setzen und Kommutierung aktivieren */
-        PWM_SetValue(BLDC_RampupTable[bldc_RampupStep].pwmDuty);
-        bldc_SetCommutation(newCommutation);
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-        {
-            /* Zeitpunkt der Kommutierung merken (für Fensterberechung) */
-            bldc_tCommutation = TMR1_GetTimerValue();
-        }
+            /* PWM sollwert setzen und Kommutierung aktivieren */
+            PWM_SetValue(BLDC_RampupTable[bldc_RampupStep].pwmDuty);
+            bldc_SetCommutation(newCommutation);
+            ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+            {
+                /* Zeitpunkt der Kommutierung merken (für Fensterberechung) */
+                bldc_tCommutation = TMR1_GetTimerValue();
+            }
 
-        /* Und Kommutierungstimer für den nächsten Rampenschritt starten */
-        TMR1_EnableTimerA(BLDC_RampupTable[bldc_RampupStep].commutationTime);
+            /* Und Kommutierungstimer für den nächsten Rampenschritt starten */
+            TMR1_EnableTimerA(BLDC_RampupTable[bldc_RampupStep].commutationTime);
         break;
 
         case BLDC_STATE_LAST_RAMP_UP:
-        /* Letzter Schritt in der Ramp-Up Phase. Kommutierung weiterschalten */
-        newCommutation = bldc_CommutationStep++;
-        newCommutation %= 6;
+            /* Letzter Schritt in der Ramp-Up Phase. Kommutierung weiterschalten */
+            newCommutation = bldc_CommutationStep++;
+            newCommutation %= 6;
         
-        /* Zähler für Kommutierungsfehler initialisieren */
-        bldc_FailedCommutations[0] = 0;
-        bldc_FailedCommutations[1] = 0;
-        bldc_FailedCommutations[2] = 0;
+            /* Zähler für Kommutierungsfehler initialisieren */
+            bldc_FailedCommutations[0] = 0;
+            bldc_FailedCommutations[1] = 0;
+            bldc_FailedCommutations[2] = 0;
         
-        /* Fenster zum ersten erwarteten Nulldurchgang berechnen. */
-        bldc_tCommutationDelay = BLDC_RampupTable[bldc_RampupStep].commutationTime / 2;
-        bldc_tZeroCrossWindowStart = 10;
-        bldc_tZeroCrossWindowStop = bldc_tCommutationDelay - 10;
-        bldc_ZeroCrossWindowOpen = false;
+            /* Fenster zum ersten erwarteten Nulldurchgang berechnen. */
+            bldc_tCommutationDelay = BLDC_RampupTable[bldc_RampupStep].commutationTime / 2;
+            bldc_tZeroCrossWindowStart = 10;
+            bldc_tZeroCrossWindowStop = bldc_tCommutationDelay - 10;
+            bldc_ZeroCrossWindowOpen = false;
         
-        /* Neuer State: Running */
-        bldc_Status.curState = BLDC_STATE_RUNNING;
+            /* Neuer State: Running */
+            bldc_Status.curState = BLDC_STATE_RUNNING;
         
-        /* Kommutierung setzen */
-        bldc_SetCommutation(newCommutation);
+            /* Kommutierung setzen */
+            bldc_SetCommutation(newCommutation);
         
-        /* Zeitpunkt der Kommutierung für Fensterberechung merken */
-        bldc_tCommutation = TMR1_GetTimerValue();
+            /* Zeitpunkt der Kommutierung für Fensterberechung merken */
+            bldc_tCommutation = TMR1_GetTimerValue();
         
-        /* Fenster zum Nulldurchgang starten */
-        TMR1_EnableTimerB(bldc_tZeroCrossWindowStart);
+            /* Fenster zum Nulldurchgang starten */
+            TMR1_EnableTimerB(bldc_tZeroCrossWindowStart);
         break;
 
         case BLDC_STATE_RUNNING:
-        /* Kommutierung weiterschalten */
-        newCommutation = bldc_CommutationStep++;
-        newCommutation %= 6;
+            /* Kommutierung weiterschalten */
+            newCommutation = bldc_CommutationStep++;
+            newCommutation %= 6;
 
-        /* Fenster zum erwarteten Nulldurchgang berechnen:
-        Fenster = Letzter Nulldurchgang+-10%??
-        Wenn Nulldurchgang innerhalb dieses Fensters erfolgt,
-        wird Commutationdelay(30°) neu berechnet (gütliger Nulldurchgang erkannt)
-        Wenn nicht, erfolgt kommutierung mit letztem Phasenwinkel.
-        */
-        temp = bldc_tCommutationDelay * 100;
-        temp += 500;
-        temp /= 1000;
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-        {
-            bldc_tZeroCrossWindowStart = bldc_tCommutationDelay - temp;
-            bldc_tZeroCrossWindowStop = bldc_tZeroCrossWindowStart + (temp * 2);
-        }
+            /* Fenster zum erwarteten Nulldurchgang berechnen:
+            Fenster = Letzter Nulldurchgang+-10%??
+            Wenn Nulldurchgang innerhalb dieses Fensters erfolgt,
+            wird Commutationdelay(30°) neu berechnet (gütliger Nulldurchgang erkannt)
+            Wenn nicht, erfolgt kommutierung mit letztem Phasenwinkel.
+            */
+            temp = bldc_tCommutationDelay * 100;
+            temp += 500;
+            temp /= 1000;
+            ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+            {
+                bldc_tZeroCrossWindowStart = bldc_tCommutationDelay - temp;
+                bldc_tZeroCrossWindowStop = bldc_tZeroCrossWindowStart + (temp * 2);
+            }
         
-        /* Neue Kommutierung setzen */
-        bldc_SetCommutation(newCommutation);
-        bldc_tCommutation = TMR1_GetTimerValue();
+            /* Neue Kommutierung setzen */
+            bldc_SetCommutation(newCommutation);
+            bldc_tCommutation = TMR1_GetTimerValue();
         
-        /* ADC starten */
-        ADC_SelectInput(BLDC_ADC_CURRENT_INPUT);
-        ADC_StartConversion();
+            /* ADC starten */
+            ADC_SelectInput(BLDC_ADC_CURRENT_INPUT);
+            ADC_StartConversion();
 
-        /* Fenster zum Nulldurchgang starten */
-        TMR1_EnableTimerB(bldc_tZeroCrossWindowStart);
+            /* Fenster zum Nulldurchgang starten */
+            TMR1_EnableTimerB(bldc_tZeroCrossWindowStart);
         break;
 
         default:
-        /* Fehler: Motor stoppen */
-        BLDC_StopMotor(true);
-        /* TODO: Fehler setzen */
+            /* Fehler: Motor stoppen */
+            bldc_SetError(BLDC_ERROR_MODE);
         break;
     }
 }

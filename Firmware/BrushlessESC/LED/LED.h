@@ -44,3 +44,4 @@ void SIG_Beep(uint16_t freq, uint16_t duration);
 #endif
 
 #endif /*LED_H_*/
+/* EOF */

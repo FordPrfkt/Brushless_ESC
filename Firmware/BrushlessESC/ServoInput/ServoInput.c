@@ -11,15 +11,16 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 #include "../Drivers/Timer/Timer1.h"
+#include "../Filter/MovingAvgFilter.h"
 #include "ServoInput.h"
 
 static volatile uint8_t servo_invalidPulseCnt;
 static volatile uint16_t servo_currentPulseDuration;
 static volatile uint16_t servo_tmpCtrVal;
 static volatile bool timer1Overflow;
-
-static MAVG_FilterData_t bldc_PPMFilterData;
-static MAVG_FilterContent_t bldc_PPMFilter[8];
+static volatile bool signalError;
+static MAVG_FilterData_t servo_PPMFilterData;
+static MAVG_FilterContent_t servo_PPMFilter[8];
 
 void SVI_Init(void)
 {
@@ -27,7 +28,9 @@ void SVI_Init(void)
     servo_currentPulseDuration = 0;
     servo_tmpCtrVal = 0;
     timer1Overflow = false;
-    MAVG_Init(&mc_PPMFilterData, 3, 0);
+    
+    servo_PPMFilterData.filterContent = servo_PPMFilter;
+    MAVG_Init(&servo_PPMFilterData, 3, 0);
 }
 
 void SVI_Start(void)
@@ -44,7 +47,7 @@ uint16_t SVI_GetPulseDuration(void)
 {
     if (false == signalError)
     {
-        return MAVG_GetResult(&bldc_PPMFilterData);        
+        return MAVG_GetResult(&servo_PPMFilterData);        
     }
     else
     {
@@ -93,12 +96,12 @@ ISR(TIMER1_CAPT_vect, ISR_NOBLOCK)
                     if (--servo_invalidPulseCnt == 0)
                     {
                         signalError = false;
-                        MAVG_Init(&bldc_PPMFilterData,3,tmpVal);                        
+                        MAVG_Init(&servo_PPMFilterData,3,tmpVal);                        
                     }
                 }
                 else
                 {
-                    MAVG_AddValue(&bldc_PPMFilterData, tmpVal);                    
+                    MAVG_AddValue(&servo_PPMFilterData, tmpVal);                    
                 }
             }
 
@@ -129,3 +132,5 @@ ISR(TIMER1_OVF_vect)
         timer1Overflow = true;
     }
 }
+
+/* EOF */

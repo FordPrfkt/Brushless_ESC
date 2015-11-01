@@ -33,11 +33,11 @@ typedef enum PWM_Prescaler_e
 {
 	PWM_PRESCALER_1 = _BV(CS20),
 	PWM_PRESCALER_8 = _BV(CS21),
-	PWM_PRESCALER_32 = _BV(CS20|CS21),
+	PWM_PRESCALER_32 = _BV(CS20)|_BV(CS21),
 	PWM_PRESCALER_64 = _BV(CS22),
-	PWM_PRESCALER_128 = _BV(CS22|CS20),
-	PWM_PRESCALER_256 = _BV(CS22|CS21),
-	PWM_PRESCALER_1024 = _BV(CS22|CS21|CS20)
+	PWM_PRESCALER_128 = _BV(CS22)|_BV(CS20),
+	PWM_PRESCALER_256 = _BV(CS22)|_BV(CS21),
+	PWM_PRESCALER_1024 = _BV(CS22)|_BV(CS21)|_BV(CS20)
 }PWM_Prescaler_t;
 
 /*=============================================================================
@@ -55,3 +55,4 @@ void PWM_SetValue(uint8_t value);
 #endif
 
 #endif /*PWM_H_*/
+/* EOF */

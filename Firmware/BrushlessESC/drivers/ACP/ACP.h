@@ -54,3 +54,4 @@ void ACP_SelectInput(ACP_Input_t input);
 #endif
 
 #endif /*ACP_H_*/
+/* EOF */

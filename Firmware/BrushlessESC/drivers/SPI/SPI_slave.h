@@ -27,8 +27,7 @@
 
 typedef enum SPI_Cmd_e
 {
-	SPI_CMD_RESET = 0xA0,
-	SPI_CMD_TO_FBL = 0xB0,
+	SPI_CMD_TO_FBL = 0xA0,
 	SPI_CMD_SET_CONFIG = 0x20,
 	SPI_CMD_GET_CONFIG = 0x21,
 	SPI_CMD_SAVE_CONFIG = 0x22,
@@ -64,3 +63,4 @@ bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen);
 #endif
 
 #endif /*SPI_slave_H_*/
+/* EOF */

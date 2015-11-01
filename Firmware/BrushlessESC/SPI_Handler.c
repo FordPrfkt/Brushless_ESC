@@ -17,7 +17,9 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 #include "drivers/SPI/SPI_slave.h"
-#include "BLDC.h"
+#include "BLDC/BLDC.h"
+#include "ServoInput/ServoInput.h"
+#include "MotorController.h"
 
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
@@ -43,23 +45,12 @@ uint8_t tempU8;
 bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen)
 {
 	bool result = false;
-	BLDC_Status_t *bldcStatus_p;
+	volatile BLDC_Status_t *bldcStatus_p;
     
     bldcStatus_p = BLDC_GetStatus();
         
 	switch (cmd)
 	{
-		case SPI_CMD_RESET:
-		/* Reset */
-		if (bldcStatus_p->curState == BLDC_STATE_STOP)
-		{
-            do 
-            {
-                asm("NOP");
-            } while (1);
-        }        
-		break;
-		
 		case SPI_CMD_TO_FBL:
 		/* FBL Byte setzen, Reset  */
 		if (bldcStatus_p->curState == BLDC_STATE_STOP)
@@ -74,7 +65,7 @@ bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen)
 		case SPI_CMD_SAVE_CONFIG:
 		if (bldcStatus_p->curState != BLDC_STATE_STOP)
 		{
-			bldc_WriteConfigData();
+/*			bldc_WriteConfigData();*/
 			result = true;
 		}
 		break;
@@ -89,7 +80,7 @@ bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen)
 		case SPI_CMD_SET_THROTTLE:
         if (1 == paramLen)
         {
-            MC_SetThrottleValue_SPI(param[0]);            
+            MC_SetThrottleValue_SPI(((uint8_t*)param)[0]);            
         }
 		break;
 
@@ -107,13 +98,13 @@ bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen)
 		
 		case SPI_CMD_GET_STATUS:
 		result = true;
-		SPI_SetTransmitBuffer(sizeof(bldc_Status), (void*)bldcStatus_p);
+		SPI_SetTransmitBuffer(sizeof(BLDC_Status_t), (void*)bldcStatus_p);
 		break;
 		
 		case SPI_CMD_GET_CONFIG:
 		if (bldcStatus_p->curState == BLDC_STATE_STOP)
 		{
-			SPI_SetTransmitBuffer(sizeof(bldc_Config), (void*)BLDC_GetConfig());
+			SPI_SetTransmitBuffer(sizeof(BLDC_Config_t), (void*)BLDC_GetConfig());
             result = true;
 		}
 		break;
@@ -128,3 +119,5 @@ bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen)
 /* -----------------------------------------------------
  * --               Private functions                  --
  * ----------------------------------------------------- */
+
+/* EOF */

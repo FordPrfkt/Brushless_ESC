@@ -54,6 +54,7 @@ int main(void)
 {
     ACP_Init();
 	ADC_Init();
+    ADC_SelectReference(ADC_REF_AVCC);
 	PWM_Init();
 	SPI_SlaveInit();
 	TMR1_Init(0);
@@ -70,21 +71,6 @@ int main(void)
 
     wdt_enable(WDTO_500MS);
 
-    /* Resetgrund lesen und ggf. speichern */
-    if ((MCUSR & WDRF) == WDRF)
-    {
-        /* Watchdog Reset */
-        bldc_StoreError(BLDC_ERROR_WDG_RESET);
-        MCUSR |= WDRF;
-    }
-    
-    if ((MCUSR & WDRF) == BORF)
-    {
-        /* Brownout Reset */
-        bldc_StoreError(BLDC_ERROR_BROWNOUT_RESET);
-        MCUSR |= BORF;
-    }
-
 	do 
 	{
         if (true == run1msTask)
@@ -94,6 +80,7 @@ int main(void)
         
 		BLDC_Mainfunction();
         MC_Cyclic_1ms();
+        LED_Cyclic_1ms();
         
         wdt_reset();
 	} while (1);
@@ -108,3 +95,5 @@ ISR(TIMER0_COMPB_vect, ISR_NOBLOCK)
     run1msTask = true;
     TIMSK0 = 0;
 }
+
+/* EOF */

@@ -149,6 +149,9 @@
     <Compile Include="config\BLDC_config.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="config\LED_config.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="config\MotorController_config.c">
       <SubType>compile</SubType>
     </Compile>
@@ -195,9 +198,6 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="LED\LED.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="LED\LED_config.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="main.c">

@@ -34,7 +34,7 @@ MC_Config_t MC_ConfigDataEE EEMEM =
     .throttleTimeout = 250,
 };
 
-BLDC_Error_t MC_ErrorMemoryEE[10] EEMEM =
+uint8_t MC_ErrorMemoryEE[10] EEMEM =
 {
     BLDC_NO_ERROR,
     BLDC_NO_ERROR,

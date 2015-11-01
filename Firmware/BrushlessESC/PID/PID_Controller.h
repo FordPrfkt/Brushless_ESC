@@ -70,3 +70,4 @@ void pid_Reset_Integrator(pidData_t *pid_st);
 #endif
 
 #endif /*PID_Controller_H_*/
+/* EOF */

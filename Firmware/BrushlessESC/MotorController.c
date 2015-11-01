@@ -12,12 +12,16 @@
 =============================================================================*/
 #include <stdint.h>
 #include <stdbool.h>
+#include <avr/eeprom.h>
+#include "ServoInput/ServoInput.h"
 #include "config/MotorController_config.h"
+#include "BLDC/BLDC.h"
+#include "LED/LED.h"
 #include "MotorController.h"
 /*=============================================================================
 =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
 =============================================================================*/
-#define MC_THROTTLE_CAL_DURATION ((MC_THROTTLE_MIN_DURATION + MC_THROTTLE_MAX_DURATION) / 2)
+#define MC_THROTTLE_CAL_DURATION ((MC_MIN_PULSE_DURATION + MC_MAX_PULSE_DURATION) / 2)
 #define  MC_CLEAR_TEMP() (temp1 = temp2 = temp3 = 0)
 
 /*=============================================================================
@@ -37,14 +41,18 @@ static uint8_t mc_ThrottleTimeoutCtr;
 static uint8_t mc_pwmStep;
 
 /* EEPROM Daten */
-static uint8_t mc_LastError;
 static MC_Config_t mc_ConfigData;
-static BLDC_Error_t mc_ErrorMemory[];
 static BLDC_Config_t mc_bldcConfigData;
 /* END EEPROM Daten */
 /*=============================================================================
 =======                              METHODS                           =======
 =============================================================================*/
+uint8_t mc_GetThrottleInputPPM(uint16_t pulseDuration);
+MC_State_t mc_DoDisarmedCheck(uint16_t pulseDuration, uint8_t timeInterval);
+MC_State_t mc_DoCalibrateMax(uint16_t pulseDuration, uint8_t timeInterval);
+MC_State_t mc_DoCalibrateMin(uint16_t pulseDuration, uint8_t timeInterval);
+void mc_PlaySound(void);
+void mc_SetError(uint8_t errorID, bool continueOperation);
 
 /* -----------------------------------------------------
 * --               Public functions                  --
@@ -58,17 +66,29 @@ void MC_Init(void)
     mc_ThrottleVal = 0;
     mc_ThrottleTimeoutCtr = 0;
     mc_pwmStep = 0;
-    
     MC_CLEAR_TEMP();
     
-  	eeprom_read_block(&mc_ConfigData, &mc_ConfigDataEE, sizeof(MC_Config_t));
-  	eeprom_read_block(&mc_ErrorMemory, &mc_ErrorMemoryEE, sizeof(BLDC_Error_t) * 10);
-  	eeprom_read_byte(&mc_LastError, &mc_LastErrorEE);
-    eeprom_read_block(&mc_bldcConfigData, &mc_bldcConfigDataEE, sizeof(BLDC_Config_t));
+    /* Resetgrund lesen und ggf. speichern */
+    if ((MCUSR & WDRF) == WDRF)
+    {
+        /* Watchdog Reset */
+        mc_SetError(MC_ERROR_WDG_RESET, true);
+        MCUSR |= WDRF;
+    }
+        
+    if ((MCUSR & WDRF) == BORF)
+    {
+        /* Brownout Reset */
+        mc_SetError(MC_ERROR_BROWNOUT_RESET, true);
+        MCUSR |= BORF;
+    }
+    
+  	eeprom_read_block(&mc_ConfigData, &MC_ConfigDataEE, sizeof(MC_Config_t));
+    eeprom_read_block(&mc_bldcConfigData, &MC_bldcConfigDataEE, sizeof(BLDC_Config_t));
 
     mc_pwmStep = (mc_ConfigData.throttleFullDuration * 10) / MC_PWM_STEPS;
     
-    BLDC_Init();
+    BLDC_Init(&mc_bldcConfigData);
     SVI_Start();
 }
 
@@ -85,14 +105,26 @@ void MC_ArmSPI(void)
 {
     if ((MC_PPM_INPUT == mc_Input) && ((MC_STATE_DISARMED == mc_State)||(MC_STATE_ARMED == mc_State)))
     {
-        mc_Input == MC_SPI_INPUT;
+        mc_Input = MC_SPI_INPUT;
         mc_State = MC_STATE_ARMED;
     }
+}
+
+void MC_GetErrorMemory(uint8_t errorMem[], uint8_t *lastError)
+{
+    *lastError = eeprom_read_byte(&MC_LastErrorEE);
+    eeprom_read_block(errorMem, &MC_ErrorMemoryEE, 10);
+}
+
+uint8_t MC_GetThrottle(void)
+{
+    return mc_ThrottleVal;
 }
 
 void MC_Cyclic_1ms(void)
 {
     uint16_t ppmInputValue = SV_NO_PULSE;
+    uint16_t armingTimeout = 0;
     
     switch (mc_Input)
     {
@@ -158,6 +190,7 @@ void MC_Cyclic_1ms(void)
         case MC_STATE_STARTUP:
         /* Startmelodie */
         mc_State = MC_STATE_DISARMED;
+        armingTimeout = 0;
         MC_CLEAR_TEMP();
         break;
         
@@ -167,7 +200,7 @@ void MC_Cyclic_1ms(void)
         {
             if (MC_PPM_INPUT == mc_Input)
             {
-                mc_State = mc_DoDisarmedCheck(pulseDuration, MC_LOOP_INTERVAL);
+                mc_State = mc_DoDisarmedCheck(ppmInputValue, MC_LOOP_INTERVAL);
             }
             else
             {
@@ -177,37 +210,37 @@ void MC_Cyclic_1ms(void)
         else
         {
             MC_CLEAR_TEMP();
-            return MC_STATE_ERROR;
+            mc_SetError(MC_ERROR_ARMING_TIMEOUT, false);
         }
         break;
         
         case MC_STATE_CALIBRATE_MAX:
         if (MC_PPM_INPUT == mc_Input)
         {
-            mc_State = mc_DoCalibrateMax(pulseDuration, MC_LOOP_INTERVAL);            
+            mc_State = mc_DoCalibrateMax(ppmInputValue, MC_LOOP_INTERVAL);            
         }
         else
         {
-            mc_State = MC_STATE_ERROR;
+            mc_SetError(MC_ERROR_INTERNAL, false);
         }
         break;
         
         case MC_STATE_CALIBRATE_MIN:
         if (MC_PPM_INPUT == mc_Input)
         {
-            mc_State = mc_DoCalibrateMin(pulseDuration, MC_LOOP_INTERVAL);
+            mc_State = mc_DoCalibrateMin(ppmInputValue, MC_LOOP_INTERVAL);
         }        
         else
         {
-            mc_State = MC_STATE_ERROR;
+            mc_SetError(MC_ERROR_INTERNAL, false);
         }
         break;
 
         case MC_STATE_ARMED:
+        LED_On();
         if (UINT8_MAX == mc_ThrottleVal)
         {
-            BLDC_StopMotor(true);
-            mc_State = MC_STATE_ERROR;
+            mc_SetError(MC_ERROR_NO_SIGNAL, false);
         }
         else
         {
@@ -225,6 +258,7 @@ void MC_Cyclic_1ms(void)
             {
                 MC_CLEAR_TEMP();
                 mc_State = MC_STATE_RUNNING;
+                LED_Off();
                 BLDC_StartMotor();
                 BLDC_SetPower(mc_ThrottleVal);
             }
@@ -232,13 +266,10 @@ void MC_Cyclic_1ms(void)
         break;
         
         case MC_STATE_RUNNING:
-        if (UINT8_MAX == mc_ThrottleVal)
+
+        if (UINT8_MAX != mc_ThrottleVal)
         {
-            BLDC_StopMotor(true);
-            mc_State = MC_STATE_ERROR;
-        }
-        else
-        {
+            /* Wenn Gas = 0, Motor stoppen */
             if (0 == mc_ThrottleVal)
             {
                 BLDC_StopMotor(false);
@@ -246,12 +277,23 @@ void MC_Cyclic_1ms(void)
             }
             else
             {
+                /* Sonst: Motorleistung setzen */
                 BLDC_SetPower(mc_ThrottleVal);
             }
         }
+        else
+        {
+            /* Throttle timeout */
+            mc_SetError(MC_ERROR_NO_SIGNAL, false);
+        }
         
-        /* Motor überwachen.
-        * Wenn Gas auf 0 geht und dann wieder hoch,
+        /* Motorfehler ueberwachen */
+        if (BLDC_GetStatus()->error != BLDC_NO_ERROR)
+        {
+            mc_SetError((uint8_t)BLDC_GetStatus()->error, false);
+        }
+        
+        /* Wenn Gas auf 0 geht und dann wieder hoch,
         * prüfen ob der Motor stillsteht oder direkt weiter kommutiert werden kann.
         * Wenn Motor länger Stillsteht, wieder zu Disarmed */
         break;
@@ -264,7 +306,6 @@ void MC_Cyclic_1ms(void)
         break;
     }
 }
-
 /* -----------------------------------------------------
 * --               Private functions                  --
 * ----------------------------------------------------- */
@@ -327,6 +368,7 @@ MC_State_t mc_DoDisarmedCheck(uint16_t pulseDuration, uint8_t timeInterval)
         if (throttleCalTimeout >= MC_CHECK_CAL_TIME)
         {
             MC_CLEAR_TEMP();
+            LED_Blink(500);
             return MC_STATE_CALIBRATE_MAX;
         }
     }
@@ -370,6 +412,7 @@ MC_State_t mc_DoCalibrateMax(uint16_t pulseDuration, uint8_t timeInterval)
     if (MC_CALIBRATE_TIME < calTimer)
     {
         MC_CLEAR_TEMP();
+        LED_Blink(300);
         return MC_STATE_CALIBRATE_MIN;
     }
     
@@ -420,6 +463,7 @@ MC_State_t mc_DoCalibrateMin(uint16_t pulseDuration, uint8_t timeInterval)
     if (MC_CALIBRATION_TIMEOUT <= calTimeout)
     {
         MC_CLEAR_TEMP();
+        mc_SetError(MC_ERROR_CAL_TIMEOUT, false);
         return MC_STATE_ERROR;
     }
 
@@ -430,25 +474,40 @@ MC_State_t mc_DoCalibrateMin(uint16_t pulseDuration, uint8_t timeInterval)
     #undef calTimer
 }
 
-void bldc_StoreError(BLDC_Error_t error)
+void mc_PlaySound(void)
+{
+    
+}
+
+void mc_SetError(uint8_t errorID, bool continueOperation)
 {
     uint8_t lastError;
-    BLDC_Error_t curError;
+    uint8_t curError;
+
+    if (false == continueOperation)
+    {
+        mc_State = MC_STATE_ERROR;
+        LED_Blink(100);
+        BLDC_StopMotor(true);        
+    }
+
+    lastError = eeprom_read_byte(&MC_LastErrorEE);
+    curError = eeprom_read_byte(&MC_ErrorMemoryEE[lastError]);
     
-    lastError = eeprom_read_byte(&bldc_LastError);
-    eeprom_read_block(&curError, &bldc_ErrorMemory[lastError], sizeof(BLDC_Error_t));
-    
-    if (curError != error)
+    if (curError != errorID)
     {
         lastError++;
         lastError%=10;
-        eeprom_write_block(&error, &bldc_ErrorMemory[lastError], sizeof(BLDC_Error_t));
-        eeprom_write_byte(&bldc_LastError, lastError);
+        eeprom_write_byte(&MC_ErrorMemoryEE[lastError], errorID);
+        eeprom_write_byte(&MC_LastErrorEE, lastError);
     }
 }
 
-void bldc_GetErrorMemory(BLDC_Error_t errorMem[], uint8_t *lastError)
-{
-    *lastError = eeprom_read_byte(&bldc_LastError);
-    eeprom_read_block(errorMem, &bldc_ErrorMemory, sizeof(bldc_ErrorMemory));
-}
+/* TODO: Timereinstellungen berechnen (Ticks/ms etc) */
+/* TODO: Anfahrrampe berechnen */
+/* TODO: Kalibrierung speichern */
+/* TODO: Strom/Spannungsbegrenzung */
+/* TODO: Beim anfahren prüfen ob der Motor schon dreht */
+/* TODO: Soundausgabe */
+
+/* EOF */
