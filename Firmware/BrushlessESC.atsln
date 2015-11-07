@@ -9,16 +9,24 @@ Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "Bootloader", "Bootloader\Bo
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug_I2C|AVR = Debug_I2C|AVR
 		Debug|AVR = Debug|AVR
+		Release_I2C|AVR = Release_I2C|AVR
 		Release|AVR = Release|AVR
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C3D97400-9C8A-4350-85FB-2AB8D7C14273}.Debug_I2C|AVR.ActiveCfg = Debug_I2C|AVR
+		{C3D97400-9C8A-4350-85FB-2AB8D7C14273}.Debug_I2C|AVR.Build.0 = Debug_I2C|AVR
 		{C3D97400-9C8A-4350-85FB-2AB8D7C14273}.Debug|AVR.ActiveCfg = Debug|AVR
 		{C3D97400-9C8A-4350-85FB-2AB8D7C14273}.Debug|AVR.Build.0 = Debug|AVR
+		{C3D97400-9C8A-4350-85FB-2AB8D7C14273}.Release_I2C|AVR.ActiveCfg = Release_I2C|AVR
+		{C3D97400-9C8A-4350-85FB-2AB8D7C14273}.Release_I2C|AVR.Build.0 = Release_I2C|AVR
 		{C3D97400-9C8A-4350-85FB-2AB8D7C14273}.Release|AVR.ActiveCfg = Release|AVR
 		{C3D97400-9C8A-4350-85FB-2AB8D7C14273}.Release|AVR.Build.0 = Release|AVR
+		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Debug_I2C|AVR.ActiveCfg = Debug|AVR
 		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Debug|AVR.ActiveCfg = Debug|AVR
 		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Debug|AVR.Build.0 = Debug|AVR
+		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Release_I2C|AVR.ActiveCfg = Release|AVR
 		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Release|AVR.ActiveCfg = Release|AVR
 		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection

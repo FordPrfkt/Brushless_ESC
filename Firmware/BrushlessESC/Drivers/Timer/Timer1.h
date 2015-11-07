@@ -49,7 +49,7 @@ void TMR1_DisableTimerB(void);
 uint16_t TMR1_GetTimerValue(void);
 void TMR1_EnableICP(void);
 void TMR1_DisableICP(void);
-uint16_t TMR1_Ticks2us(uint32_t ticks);
+uint32_t TMR1_Ticks2us(uint32_t ticks);
 uint32_t TMR1_us2Ticks(uint16_t us);
 uint32_t TMR1_Ticks2ns(uint32_t ticks);
 uint32_t TMR1_ns2Ticks(uint32_t ns);

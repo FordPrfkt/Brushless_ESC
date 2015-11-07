@@ -411,6 +411,8 @@ MC_State_t mc_DoCalibrateMax(uint16_t pulseDuration, uint8_t timeInterval)
 
     if (MC_CALIBRATE_TIME < calTimer)
     {
+        mc_ConfigData.throttleFullDuration = pulseDuration;
+        
         MC_CLEAR_TEMP();
         LED_Blink(300);
         return MC_STATE_CALIBRATE_MIN;
@@ -456,6 +458,9 @@ MC_State_t mc_DoCalibrateMin(uint16_t pulseDuration, uint8_t timeInterval)
 
     if (MC_CALIBRATE_TIME < calTimer)
     {
+        mc_ConfigData.throttleOffDuration = pulseDuration;
+        eeprom_write_block(&mc_ConfigData, &MC_ConfigDataEE, sizeof(MC_Config_t));    
+        
         MC_CLEAR_TEMP();
         return MC_STATE_ARMED;
     }
@@ -503,11 +508,9 @@ void mc_SetError(uint8_t errorID, bool continueOperation)
     }
 }
 
-/* TODO: Timereinstellungen berechnen (Ticks/ms etc) */
-/* TODO: Anfahrrampe berechnen */
-/* TODO: Kalibrierung speichern */
-/* TODO: Strom/Spannungsbegrenzung */
 /* TODO: Beim anfahren prüfen ob der Motor schon dreht */
 /* TODO: Soundausgabe */
+/* TODO: Selbsttest */
+/* TODO: Anfahrrampe berechnen */
 
 /* EOF */

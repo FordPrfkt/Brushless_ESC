@@ -48,6 +48,8 @@ typedef enum ADC_Reference_e
 /*=============================================================================
 =======                              EXPORTS                            =======
 =============================================================================*/
+extern void ADC_ConversionCallback(uint16_t adcResult);
+
 void ADC_Init(void);
 void ADC_Enable(void);
 void ADC_Disable(void);

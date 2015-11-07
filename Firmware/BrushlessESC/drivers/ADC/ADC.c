@@ -10,6 +10,8 @@
 /*=============================================================================
  =======                            INCLUDES                             =======
  =============================================================================*/
+#include <stdint.h>
+#include <stdbool.h>
 #include <avr/io.h>
 #include <avr/sfr_defs.h>
 #include <avr/interrupt.h>
@@ -26,6 +28,8 @@
 /*=============================================================================
  =======                VARIABLES & MESSAGES & RESSOURCEN                =======
  =============================================================================*/
+ADC_Reference_t adc_currentRef;
+bool adc_RefChanged;
 
 /*=============================================================================
  =======                              METHODS                           =======
@@ -40,6 +44,9 @@ void ADC_Init(void)
 	ADCSRB = 0;
 	DIDR0 = _BV(ADC0D)|_BV(ADC1D)|_BV(ADC2D)|_BV(ADC3D)|_BV(ADC4D)|_BV(ADC5D);
 	ADMUX = 0;
+    
+    adc_currentRef = ADC_REF_AVCC;
+    adc_RefChanged = false;
 }
 
 inline void ADC_Enable(void)
@@ -59,6 +66,12 @@ inline void ADC_SelectInput(ADC_Input_t input)
 
 void ADC_SelectReference(ADC_Reference_t adcRef)
 {
+    if (adcRef != adc_currentRef)
+    {
+        adc_currentRef = adcRef;
+        adc_RefChanged = true;
+    }
+    
     ADMUX = (ADMUX & 0x2F) | adcRef;
 }
 
@@ -85,5 +98,23 @@ inline uint16_t ADC_GetConversionResult(void)
 /* -----------------------------------------------------
  * --               Private functions                  --
  * ----------------------------------------------------- */
+ISR(ADC_vect)
+{
+    uint16_t result;
 
+    if (true == adc_RefChanged)
+    {
+        /* Das erste Ergebnis nach dem Umschalten der Referenz sollte verworfen werden weil ungenau */
+        ADC_StartConversion();
+    }
+    else
+    {
+        /* Handler aufrufen */
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+        {
+            result = ADC;
+        }
+        ADC_ConversionCallback(result);
+    }
+}
 /* EOF */

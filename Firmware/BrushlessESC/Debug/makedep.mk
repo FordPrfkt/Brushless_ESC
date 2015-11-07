@@ -10,6 +10,8 @@ drivers\ACP\ACP.c
 
 drivers\ADC\ADC.c
 
+drivers\I2C\I2C.c
+
 drivers\Timer\Timer1.c
 
 drivers\PWM\PWM.c

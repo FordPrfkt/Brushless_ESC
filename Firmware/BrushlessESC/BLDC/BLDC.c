@@ -161,6 +161,7 @@ static BLDC_Config_t *bldc_Config;
 =============================================================================*/
 static void bldc_SetCommutation(uint8_t commutationStep);
 static void bldc_SetError(BLDC_Error_t error);
+static void bldc_TriggerADCConversion(ADC_Input_t input);
 
 /* -----------------------------------------------------
 * --               Public functions                  --
@@ -248,14 +249,16 @@ void BLDC_StopMotor(bool quickstop)
 }
 
 void BLDC_Mainfunction(void)
-{      
-    /* Strom prüfen */
-    /* Motordrehzahl berechnen */   
+{
+    uint16_t revTime_ms;
+    uint32_t cutbackValue;
+    uint16_t temp;
+    
     bldc_Status.batVoltage = MAVG_GetResult(&bldc_VoltageFilterData);
     bldc_Status.motorCurrent = MAVG_GetResult(&bldc_CurrentFilterData);
     
     /* Spannung prüfen */
-    if (bldc_Status.batVoltage >= bldc_Config->maxVoltage)
+    if (bldc_Status.batVoltage > bldc_Config->maxVoltage)
     {
         /* Überspannung */
         BLDC_StopMotor(true);
@@ -271,7 +274,57 @@ void BLDC_Mainfunction(void)
     {
         /* Spannung OK */
     }
+
+    /* Strom prüfen */
+    if ((BLDC_NO_LIMIT != bldc_Config->currentLimitMode) && (bldc_Status.motorCurrent > bldc_Config->maxCurrent))
+    {
+        if (BLDC_LIMIT_SOFT == bldc_Config->currentLimitMode)
+        {
+            /* Feststellen um wieveiel % die Stromschwelle ueberschritten ist
+             * und die ansteuerung um diesen Wert zurueckfahren */
+            cutbackValue = bldc_Config->maxCurrent * 100U;
+            cutbackValue /= bldc_Status.motorCurrent;
+            if (cutbackValue >= 100)
+            {
+                cutbackValue = 0;
+            }
+            
+            temp = (uint16_t)bldc_PWMValue * (uint16_t)cutbackValue;
+            temp /= 100U;
+            
+            if (0 == temp)
+            {
+                bldc_PWMValue = 1;
+            }
+            else
+            {
+                bldc_PWMValue = (uint8_t)temp;
+            }
+        }
+        else
+        {
+            /* Ansteuerung hart auf 1 */
+            bldc_PWMValue = 1U;   
+        }        
+    }
     
+    /* Motordrehzahl berechnen */
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    {
+        /* Ticks fuer 1 Umdrehung in ms umrechnen */
+        revTime_ms = TMR1_Ticks2us(bldc_revolutionTime) / 1000UL;
+        
+        /* Zeit in ms in RPM umrechnen */
+        if (0 != revTime_ms)
+        {
+            bldc_Status.RPMActual = (1000UL / revTime_ms) * 60UL;            
+        }
+        else
+        {
+            bldc_Status.RPMActual = 0;
+        }
+    }
+     
     switch (bldc_Status.curState)
     {
         case BLDC_STATE_STOP:
@@ -281,8 +334,7 @@ void BLDC_Mainfunction(void)
         break;
 
         case BLDC_STATE_RUNNING:      
-        /* Regler, PWM Sollwertvorgabe */
-        /*		bldc_PWMValue = pid_Controller(int16_t setPoint, int16_t processValue, struct PID_DATA *pid_st);*/
+        /* PWM Sollwertvorgabe */
         PWM_SetValue(bldc_PWMValue);
 
         /*	Wenn 6 mal (3 Umdrehungen) auf einer Phase kein gültiger  Nulldurchgang, erfolgt Stopp */
@@ -309,7 +361,8 @@ void BLDC_Mainfunction(void)
         break;
 
         default:
-        /* Your code here */
+            /* Fehler: Motor stoppen */
+            bldc_SetError(BLDC_ERROR_MODE);
         break;
     }    
 }
@@ -405,6 +458,25 @@ void bldc_SetCommutation(uint8_t commutationStep)
     DDR_BLDC = ddrByte;
 }
 
+void bldc_TriggerADCConversion(ADC_Input_t input)
+{
+    switch (input)
+    {
+        case BLDC_ADC_CURRENT_INPUT:
+            ADC_SelectReference(ADC_REF_1V1);
+        break;
+        
+        case BLDC_ADC_VOLTAGE_INPUT:
+            ADC_SelectReference(ADC_REF_AVCC);
+        break;
+        
+        default:
+        break;
+    }
+    
+    ADC_SelectInput(input);
+    ADC_StartConversion();
+}
 /* -----------------------------------------------------
 * --           Interrupt service routines            --
 * ----------------------------------------------------- */
@@ -509,16 +581,13 @@ ISR(TIMER1_COMPA_vect)
             bldc_tCommutation = TMR1_GetTimerValue();
         
             /* ADC starten */
-            ADC_SelectInput(BLDC_ADC_CURRENT_INPUT);
-            ADC_StartConversion();
+            bldc_TriggerADCConversion(BLDC_ADC_CURRENT_INPUT);
 
             /* Fenster zum Nulldurchgang starten */
             TMR1_EnableTimerB(bldc_tZeroCrossWindowStart);
         break;
 
         default:
-            /* Fehler: Motor stoppen */
-            bldc_SetError(BLDC_ERROR_MODE);
         break;
     }
 }
@@ -539,8 +608,7 @@ ISR(TIMER1_COMPB_vect)
         ADC_Enable();
 
         /* ADC starten */
-        ADC_SelectInput(BLDC_ADC_VOLTAGE_INPUT);
-        ADC_StartConversion();
+        bldc_TriggerADCConversion(BLDC_ADC_VOLTAGE_INPUT);
 
         /* Fenster-timer stoppen, Kommutierungstimer mit letzter Kommutierungszeit starten */
         TMR1_DisableTimerB();
@@ -575,8 +643,7 @@ ISR(ANALOG_COMP_vect)
         bldc_ZeroCrossWindowOpen = false;
 
         /* ADC starten */
-        ADC_SelectInput(BLDC_ADC_VOLTAGE_INPUT);
-        ADC_StartConversion();
+        bldc_TriggerADCConversion(BLDC_ADC_VOLTAGE_INPUT);
         
         /*
         * Berechnung CommutationDelay: tDelay = tCommutation + (tZeroCross * 2)
@@ -597,7 +664,7 @@ ISR(ANALOG_COMP_vect)
     }
 }
 
-ISR(ADC_vect)
+void ADC_ConversionCallback(uint16_t adcResult)
 {
     /* AD Wert fuer Strom bzw. Spannung
      * vom ADC holen und filtern.
@@ -605,14 +672,14 @@ ISR(ADC_vect)
     switch (ADC_GetSelectedInput())
     {
         case BLDC_ADC_CURRENT_INPUT:
-        MAVG_AddValue(&bldc_CurrentFilterData, ADC_GetConversionResult());
+        MAVG_AddValue(&bldc_CurrentFilterData, adcResult);
         break;
         
         case BLDC_ADC_VOLTAGE_INPUT:
-        MAVG_AddValue(&bldc_VoltageFilterData, ADC_GetConversionResult());        
+        MAVG_AddValue(&bldc_VoltageFilterData, adcResult);        
         break;
         
         default:
         break;
-    }
+    }    
 }

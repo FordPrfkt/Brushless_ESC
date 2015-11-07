@@ -148,12 +148,13 @@ inline void TMR1_DisableICP(void)
     TIMSK1 &= ~_BV(ICIE1);    
 }
 
-uint16_t TMR1_Ticks2us(uint32_t ticks)
+uint32_t TMR1_Ticks2us(uint32_t ticks)
 {
-    uint16_t result;
+    uint32_t result;
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
     {
-        result = ticks * ((tickDuration_ns_prescaled + 5555UL) / 10000UL);
+        result = ticks * (tickDuration_ns_prescaled + 5555UL);
+        result /= 10000UL;
     }
     return result;
 }
