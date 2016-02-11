@@ -28,6 +28,7 @@ LIBS:opto
 LIBS:atmel
 LIBS:contrib
 LIBS:valves
+LIBS:ESC_Tester-cache
 EELAYER 25 0
 EELAYER END
 $Descr A4 11693 8268
@@ -59,7 +60,7 @@ U 1 1 56070B61
 P 3200 3200
 F 0 "P2" H 3200 3650 50  0000 C CNN
 F 1 "CONN_BLDC" V 3300 3200 50  0000 C CNN
-F 2 "w_conn_jst-ph:s8b-ph-kl" H 3200 3200 60  0001 C CNN
+F 2 "Connectors_Molex:Connector_Molex_PicoBlade_53261-0871" H 3200 3200 60  0001 C CNN
 F 3 "" H 3200 3200 60  0000 C CNN
 	1    3200 3200
 	-1   0    0    -1  

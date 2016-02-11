@@ -130,6 +130,7 @@ static const BLDC_Rampup_Table_t BLDC_RampupTable[RAMPUP_STEPS] =
 =======                VARIABLES & MESSAGES & RESSOURCEN                =======
 =============================================================================*/
 static volatile bool bldc_ZeroCrossWindowOpen = false;
+static volatile bool bldc_SyncFailed = false;
 static volatile uint8_t bldc_RampupStep = 0;	/* aktueller Ramp-Up Schritt */
 static volatile uint8_t bldc_CommutationStep = 0;	/* aktueller Kommutierungsschritt */
 static volatile uint8_t bldc_FailedCommutations[3] = {0,0,0}; /* Fehlerhafte Kommutierungen pro Phase */
@@ -159,6 +160,8 @@ static BLDC_Config_t *bldc_Config;
 /*=============================================================================
 =======                              METHODS                           =======
 =============================================================================*/
+static void bldc_StartSync(void);
+static void bldc_StartAsync(void);
 static void bldc_SetCommutation(uint8_t commutationStep);
 static void bldc_SetError(BLDC_Error_t error);
 static void bldc_TriggerADCConversion(ADC_Input_t input);
@@ -205,17 +208,11 @@ void BLDC_StartMotor(void)
     /* Motor muss erst mal stehen... */
     if (bldc_Status.curState == BLDC_STATE_STOP)
     {
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-        {
-            bldc_Status.curState = BLDC_STATE_ALIGN;
-            bldc_RampupStep = 0;
-        }
-            
-        /* Initialen PWM Wert setzen, Kommutierung bei 0 beginnen */
-        PWM_Start(PWM_PRESCALER_1024);
-        PWM_SetValue(ALIGN_PWM);
-        bldc_SetCommutation(0);
-        TMR1_EnableTimerA(ALIGN_TIME);
+        bldc_StartAsync();
+    }
+    else
+    {
+        bldc_StartSync();
     }
 }
 
@@ -333,6 +330,14 @@ void BLDC_Mainfunction(void)
         case BLDC_STATE_LAST_RAMP_UP:
         break;
 
+        case BLDC_STATE_TEST_TURNING:
+        if (true == bldc_SyncFailed)
+        {
+            bldc_Status.curState = BLDC_STATE_STOP;
+            bldc_StartAsync();
+        }
+        break;
+        
         case BLDC_STATE_RUNNING:      
         /* PWM Sollwertvorgabe */
         PWM_SetValue(bldc_PWMValue);
@@ -477,6 +482,51 @@ void bldc_TriggerADCConversion(ADC_Input_t input)
     ADC_SelectInput(input);
     ADC_StartConversion();
 }
+
+void bldc_StartSync(void)
+{
+    bldc_CommutationStep = 0;
+    bldc_FailedCommutations[0] = 0;
+    bldc_FailedCommutations[1] = 0;
+    bldc_FailedCommutations[2] = 0;
+
+    bldc_tCommutationDelay = 0;
+    bldc_tZeroCrossWindowStart = 0;
+    bldc_tZeroCrossWindowStop = TMR1_us2Ticks(1000000UL);
+    bldc_Status.curState = BLDC_STATE_TEST_TURNING;
+
+    /* ADC Ausschalten, Komparatoreingang auf floatende Phase einstellen und einschalten */
+    ADC_Disable();
+    ACP_SelectInput(BLDC_CommutationStates[bldc_CommutationStep].ComparatorInput);
+    ACP_Enable();
+    bldc_ZeroCrossWindowOpen = true;
+
+    /* Timer zum schliessen des Fensters starten */
+    TMR1_EnableTimerB(bldc_tZeroCrossWindowStop);
+
+    bldc_tCommutation = TMR1_GetTimerValue();
+}
+
+void bldc_StartAsync(void)
+{
+    bldc_CommutationStep = 0;
+    bldc_FailedCommutations[0] = 0;
+    bldc_FailedCommutations[1] = 0;
+    bldc_FailedCommutations[2] = 0;
+
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    {
+        bldc_Status.curState = BLDC_STATE_ALIGN;
+        bldc_RampupStep = 0;
+    }
+        
+    /* Initialen PWM Wert setzen, Kommutierung bei 0 beginnen */
+    PWM_Start(PWM_PRESCALER_1024);
+    PWM_SetValue(ALIGN_PWM);
+    bldc_SetCommutation(0);
+    TMR1_EnableTimerA(ALIGN_TIME);
+}
+
 /* -----------------------------------------------------
 * --           Interrupt service routines            --
 * ----------------------------------------------------- */
@@ -489,6 +539,7 @@ ISR(TIMER1_COMPA_vect)
     switch (bldc_Status.curState)
     {
         case BLDC_STATE_STOP:
+        case BLDC_STATE_TEST_TURNING:
             /* Nichts zu tun */
         break;
         
@@ -593,26 +644,35 @@ ISR(TIMER1_COMPA_vect)
 }
 
 ISR(TIMER1_COMPB_vect)
-{
+{    
     /* Wenn der Timer abläuft, während wir auf einen Nulldurchgang warten (Fenster offen)... */
     if (true == bldc_ZeroCrossWindowOpen)
     {
-        /* ...wurde innerhalb des Fensters kein gültiger Nulldurchgang erkannt.
-           Fehlerzähler für die aktuelle Phase inkrementieren.
-        */
-        bldc_FailedCommutations[BLDC_CommutationStates[bldc_CommutationStep].BEMFPhase]++;
-        bldc_ZeroCrossWindowOpen = false;
+        if (BLDC_STATE_TEST_TURNING == bldc_Status.curState)
+        {
+            bldc_SyncFailed = true;
+            TMR1_DisableTimerA();
+            TMR1_DisableTimerB();                     
+        }
+        else
+        {
+           /* ...wurde innerhalb des Fensters kein gültiger Nulldurchgang erkannt.
+               Fehlerzähler für die aktuelle Phase inkrementieren.
+            */
+            bldc_FailedCommutations[BLDC_CommutationStates[bldc_CommutationStep].BEMFPhase]++;
+            bldc_ZeroCrossWindowOpen = false;
 
-        /* Analogkomparator ausschalten und ADC (Strom- u. Spannungsmessung) einschalten */
-        ACP_Disable();
-        ADC_Enable();
+            /* Analogkomparator ausschalten und ADC (Strom- u. Spannungsmessung) einschalten */
+            ACP_Disable();
+            ADC_Enable();
 
-        /* ADC starten */
-        bldc_TriggerADCConversion(BLDC_ADC_VOLTAGE_INPUT);
+            /* ADC starten */
+            bldc_TriggerADCConversion(BLDC_ADC_VOLTAGE_INPUT);
 
-        /* Fenster-timer stoppen, Kommutierungstimer mit letzter Kommutierungszeit starten */
-        TMR1_DisableTimerB();
-        TMR1_EnableTimerA(bldc_tCommutationDelay);
+            /* Fenster-timer stoppen, Kommutierungstimer mit letzter Kommutierungszeit starten */
+            TMR1_DisableTimerB();
+            TMR1_EnableTimerA(bldc_tCommutationDelay);         
+        }
     }
     else /* Das Fenster ist noch geschlossen, d.h. jetzt öffnen... */
     {
@@ -629,20 +689,71 @@ ISR(TIMER1_COMPB_vect)
 
 ISR(ANALOG_COMP_vect)
 {
+    uint16_t temp;
     /* Analogkomparator hat einen Nulldurchgang erkannt */
-    if ((BLDC_STATE_LAST_RAMP_UP == bldc_Status.curState) ||
+
+    /* Zeitpunkt des Nulldurchgangs speichern */
+    temp = TMR1_GetTimerValue();
+
+    /* Fenstertimer stoppen, Komparator ausschalten */
+    TMR1_DisableTimerB();
+    ACP_Disable();
+    bldc_ZeroCrossWindowOpen = false;
+
+    if (BLDC_STATE_TEST_TURNING == bldc_Status.curState)
+    {        
+        if (0 == bldc_CommutationStep)
+        {
+            bldc_tZeroCross = temp;
+        
+            ACP_SelectInput(BLDC_CommutationStates[bldc_CommutationStep].ComparatorInput);
+            ACP_Enable();
+            bldc_ZeroCrossWindowOpen = true;
+
+            /* Timer zum schliessen des Fensters starten */
+            bldc_tZeroCrossWindowStop = TMR1_us2Ticks(1000000UL);
+            TMR1_EnableTimerB(bldc_tZeroCrossWindowStop);
+        } 
+        else
+        {
+            /* Jetzt ist die Zeit zwischen zwei Nulldurchgängen bekannt,
+             * daraus kann der Zeitpunkt für die nächste Kommutierung berechnet werden */
+
+            /*
+            * Berechnung CommutationDelay: tDelay = tCommutation + (tZeroCross * 2)
+            * tDelay = Zeit vom aktuellen Nulldurchgang bis zur nächsten Kommutierung
+            * tZeroCross = Zeitpunkt des aktuellen Nulldurchgangs
+            * tCommutation = Zeitpunkt der aktuellen Kommutierung
+            */
+            
+            bldc_tCommutationDelay = bldc_tZeroCross - bldc_tCommutation;            
+            
+            bldc_tZeroCrossWindowStart = 10;
+            bldc_tZeroCrossWindowStop = bldc_tCommutationDelay - 10;
+            bldc_ZeroCrossWindowOpen = false;
+                        
+            /* Neuer State: Running */
+            bldc_Status.curState = BLDC_STATE_RUNNING;
+                                               
+            /* Zeitpunkt der Kommutierung für Fensterberechung merken */
+            bldc_tCommutation = TMR1_GetTimerValue();
+                        
+            /* Fenster zum Nulldurchgang starten */
+            TMR1_EnableTimerB(bldc_tZeroCrossWindowStart);
+            
+            /* Timer für nächste Kommutierung mit dem neu berechneten Zeitpunkt starten */
+            TMR1_EnableTimerA(bldc_tCommutationDelay);
+        }     
+        
+        bldc_CommutationStep++;
+    }
+    else if ((BLDC_STATE_LAST_RAMP_UP == bldc_Status.curState) ||
     (BLDC_STATE_RUNNING == bldc_Status.curState))
     {
-        /* Zeitpunkt des Nulldurchgangs speichern */
-        bldc_tZeroCross = TMR1_GetTimerValue();
-        
-        /* Fenstertimer stoppen, Komparator ausschalten, ADC einschalten */
-        TMR1_DisableTimerB();
-        ACP_Disable();
+        bldc_tZeroCross = temp;
+                
+        /* ADC einschalten und starten */
         ADC_Enable();
-        bldc_ZeroCrossWindowOpen = false;
-
-        /* ADC starten */
         bldc_TriggerADCConversion(BLDC_ADC_VOLTAGE_INPUT);
         
         /*
@@ -661,6 +772,10 @@ ISR(ANALOG_COMP_vect)
         
         /* Timer für nächste Kommutierung mit dem neu berechneten Zeitpunkt starten */
         TMR1_EnableTimerA(bldc_tCommutationDelay);
+    }
+    else
+    {
+        
     }
 }
 

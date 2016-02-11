@@ -56,6 +56,7 @@ typedef enum BLDC_Error_e
 typedef enum BLDC_State_e
 {
     BLDC_STATE_STOP = 0,
+    BLDC_STATE_TEST_TURNING,
     BLDC_STATE_ALIGN,
     BLDC_STATE_RAMP_UP,
     BLDC_STATE_LAST_RAMP_UP,

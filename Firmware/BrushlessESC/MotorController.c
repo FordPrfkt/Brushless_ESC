@@ -508,7 +508,6 @@ void mc_SetError(uint8_t errorID, bool continueOperation)
     }
 }
 
-/* TODO: Beim anfahren prüfen ob der Motor schon dreht */
 /* TODO: Soundausgabe */
 /* TODO: Selbsttest */
 /* TODO: Anfahrrampe berechnen */
