@@ -1,4 +1,4 @@
-update=19.09.2015 16:49:36
+update=24.03.2016 00:13:31
 version=1
 last_client=kicad
 [pcbnew]
@@ -135,5 +135,15 @@ LibName105=C:/Program Files/KiCad/share/kicad/library/xilinx
 LibName106=C:/Program Files/KiCad/share/kicad/library/Zilog
 LibName107=D:/Eigene Dateien/Dokumente/Projekte/KiCad/Kicad_Lib/converted/crystal
 LibName108=D:/Eigene Dateien/Dokumente/Projekte/KiCad/Kicad_Lib/converted/crystal-epson
+[schematic_editor]
+version=1
+PageLayoutDescrFile=
+PlotDirectoryName=.
+SubpartIdSeparator=0
+SubpartFirstId=65
+NetFmtName=
+SpiceForceRefPrefix=0
+SpiceUseNetNumbers=0
+LabSize=60
 [general]
 version=1

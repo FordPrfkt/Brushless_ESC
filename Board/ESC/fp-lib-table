@@ -1,0 +1,9 @@
+(fp_lib_table
+  (lib (name w_crystal)(type KiCad)(uri "D:\\Eigene Dateien\\Dokumente\\Projekte\\KiCad\\Kicad_Lib\\Footprint\\w_crystal.pretty")(options "")(descr ""))
+  (lib (name w_smd_diode)(type KiCad)(uri "D:\\Eigene Dateien\\Dokumente\\Projekte\\KiCad\\Kicad_Lib\\Footprint\\w_smd_diode.pretty")(options "")(descr ""))
+  (lib (name w_smd_strip)(type KiCad)(uri "D:\\Eigene Dateien\\Dokumente\\Projekte\\KiCad\\Kicad_Lib\\Footprint\\w_smd_strip.pretty")(options "")(descr ""))
+  (lib (name w_smd_trans)(type KiCad)(uri "D:\\Eigene Dateien\\Dokumente\\Projekte\\KiCad\\Kicad_Lib\\Footprint\\w_smd_trans.pretty")(options "")(descr ""))
+  (lib (name w_conn_strip)(type KiCad)(uri "D:\\Eigene Dateien\\Dokumente\\Projekte\\KiCad\\Kicad_Lib\\Footprint\\w_conn_strip.pretty")(options "")(descr ""))
+  (lib (name w_pin_strip)(type KiCad)(uri "D:\\Eigene Dateien\\Dokumente\\Projekte\\KiCad\\Kicad_Lib\\Footprint\\w_pin_strip.pretty")(options "")(descr ""))
+  (lib (name w_smd_dil)(type KiCad)(uri "D:\\Eigene Dateien\\Dokumente\\Projekte\\KiCad\\Kicad_Lib\\Footprint\\w_smd_dil.pretty")(options "")(descr ""))
+)

@@ -283,7 +283,7 @@ void BLDC_Mainfunction(void)
             cutbackValue /= bldc_Status.motorCurrent;
             if (cutbackValue >= 100)
             {
-                cutbackValue = 0;
+                cutbackValue = 100;
             }
             
             temp = (uint16_t)bldc_PWMValue * (uint16_t)cutbackValue;
@@ -492,7 +492,7 @@ void bldc_StartSync(void)
 
     bldc_tCommutationDelay = 0;
     bldc_tZeroCrossWindowStart = 0;
-    bldc_tZeroCrossWindowStop = TMR1_us2Ticks(1000000UL);
+    bldc_tZeroCrossWindowStop = UINT16_MAX;
     bldc_Status.curState = BLDC_STATE_TEST_TURNING;
 
     /* ADC Ausschalten, Komparatoreingang auf floatende Phase einstellen und einschalten */
@@ -711,7 +711,7 @@ ISR(ANALOG_COMP_vect)
             bldc_ZeroCrossWindowOpen = true;
 
             /* Timer zum schliessen des Fensters starten */
-            bldc_tZeroCrossWindowStop = TMR1_us2Ticks(1000000UL);
+            bldc_tZeroCrossWindowStop = UINT16_MAX;
             TMR1_EnableTimerB(bldc_tZeroCrossWindowStop);
         } 
         else

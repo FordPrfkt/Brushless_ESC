@@ -69,20 +69,18 @@ int main(void)
     TIMSK0 = _BV(OCIE0B);
     TCNT0 = 0;
 
-    wdt_enable(WDTO_500MS);
+    wdt_enable(WDTO_60MS);
 
 	do 
 	{
         if (true == run1msTask)
         {
             run1msTask = false;
-        }
-        
-		BLDC_Mainfunction();
-        MC_Cyclic_1ms();
-        LED_Cyclic_1ms();
-        
-        wdt_reset();
+		    BLDC_Mainfunction();
+		    MC_Cyclic_1ms();
+		    LED_Cyclic_1ms();
+            wdt_reset();
+        }            
 	} while (1);
 }
 /* -----------------------------------------------------
