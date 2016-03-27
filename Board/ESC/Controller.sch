@@ -469,7 +469,6 @@ Wire Wire Line
 Wire Wire Line
 	7150 3200 7150 3000
 NoConn ~ 5350 2750
-NoConn ~ 5350 4000
 $Comp
 L L_Small L1
 U 1 1 55F59237
@@ -539,4 +538,8 @@ Wire Wire Line
 	6900 3800 6950 3800
 Wire Wire Line
 	7350 3800 7500 3800
+Text HLabel 6150 4000 2    60   Input ~ 0
+T_Sense
+Wire Wire Line
+	5350 4000 6150 4000
 $EndSCHEMATC
