@@ -30,7 +30,7 @@
 /* -----------------------------------------------------
  * --               Public functions                  --
  * ----------------------------------------------------- */
-uint8_t SND_GetLength(SND_SoundList_t soundId)
+uint8_t SND_GetSoundLength(SND_SoundList_t soundId)
 {
 	return 0;
 }
