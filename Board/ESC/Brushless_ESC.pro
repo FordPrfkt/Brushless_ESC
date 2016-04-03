@@ -1,4 +1,4 @@
-update=24.03.2016 00:13:31
+update=02.04.2016 01:23:44
 version=1
 last_client=kicad
 [pcbnew]
@@ -23,6 +23,18 @@ ModuleOutlineThickness=0.150000000000
 [cvpcb]
 version=1
 NetIExt=net
+[schematic_editor]
+version=1
+PageLayoutDescrFile=
+PlotDirectoryName=.
+SubpartIdSeparator=0
+SubpartFirstId=65
+NetFmtName=
+SpiceForceRefPrefix=0
+SpiceUseNetNumbers=0
+LabSize=60
+[general]
+version=1
 [eeschema]
 version=1
 LibDir=
@@ -135,15 +147,4 @@ LibName105=C:/Program Files/KiCad/share/kicad/library/xilinx
 LibName106=C:/Program Files/KiCad/share/kicad/library/Zilog
 LibName107=D:/Eigene Dateien/Dokumente/Projekte/KiCad/Kicad_Lib/converted/crystal
 LibName108=D:/Eigene Dateien/Dokumente/Projekte/KiCad/Kicad_Lib/converted/crystal-epson
-[schematic_editor]
-version=1
-PageLayoutDescrFile=
-PlotDirectoryName=.
-SubpartIdSeparator=0
-SubpartFirstId=65
-NetFmtName=
-SpiceForceRefPrefix=0
-SpiceUseNetNumbers=0
-LabSize=60
-[general]
-version=1
+LibName109=D:/Eigene Dateien/Dokumente/Projekte/KiCad/tle4267
