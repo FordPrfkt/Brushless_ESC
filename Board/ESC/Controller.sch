@@ -509,48 +509,7 @@ Wire Wire Line
 	7700 2750 7700 2800
 Wire Wire Line
 	5350 2650 8950 2650
-$Comp
-L R R25
-U 1 1 56FF2402
-P 8400 3600
-F 0 "R25" V 8480 3600 50  0000 C CNN
-F 1 "220R" V 8400 3600 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805_HandSoldering" V 8330 3600 30  0001 C CNN
-F 3 "" H 8400 3600 30  0000 C CNN
-	1    8400 3600
-	-1   0    0    1   
-$EndComp
-$Comp
-L R R26
-U 1 1 56FF2482
-P 8650 3600
-F 0 "R26" V 8730 3600 50  0000 C CNN
-F 1 "220R" V 8650 3600 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805_HandSoldering" V 8580 3600 30  0001 C CNN
-F 3 "" H 8650 3600 30  0000 C CNN
-	1    8650 3600
-	-1   0    0    1   
-$EndComp
-$Comp
-L +5V #PWR020
-U 1 1 56FF258A
-P 8550 3250
-F 0 "#PWR020" H 8550 3100 50  0001 C CNN
-F 1 "+5V" H 8550 3390 50  0000 C CNN
-F 2 "" H 8550 3250 60  0000 C CNN
-F 3 "" H 8550 3250 60  0000 C CNN
-	1    8550 3250
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	8400 3350 8400 3450
-Wire Wire Line
-	8650 3350 8650 3450
-Wire Wire Line
-	8400 3750 8400 4100
 Connection ~ 8400 3900
-Wire Wire Line
-	8650 3750 8650 4100
 Connection ~ 8650 4000
 $Comp
 L ZENER D3
@@ -563,11 +522,6 @@ F 3 "" H 8400 4300 50  0000 C CNN
 	1    8400 4300
 	0    1    1    0   
 $EndComp
-Wire Wire Line
-	8400 3350 8650 3350
-Wire Wire Line
-	8550 3250 8550 3350
-Connection ~ 8550 3350
 $Comp
 L ZENER D2
 U 1 1 56FF30C2
@@ -633,4 +587,8 @@ Wire Wire Line
 Text HLabel 6700 4100 2    60   Input ~ 0
 Reset
 Connection ~ 6250 4100
+Wire Wire Line
+	8400 4100 8400 3900
+Wire Wire Line
+	8650 4100 8650 4000
 $EndSCHEMATC
