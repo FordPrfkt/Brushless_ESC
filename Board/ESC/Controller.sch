@@ -120,12 +120,12 @@ $EndComp
 $Comp
 L C C2
 U 1 1 55E3821A
-P 2150 1650
-F 0 "C2" H 2175 1750 50  0000 L CNN
-F 1 "100nF" H 2175 1550 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0603_HandSoldering" H 2188 1500 30  0001 C CNN
-F 3 "" H 2150 1650 60  0000 C CNN
-	1    2150 1650
+P 2600 3100
+F 0 "C2" H 2625 3200 50  0000 L CNN
+F 1 "100nF" H 2625 3000 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0603_HandSoldering" H 2638 2950 30  0001 C CNN
+F 3 "" H 2600 3100 60  0000 C CNN
+	1    2600 3100
 	1    0    0    -1  
 $EndComp
 Text HLabel 5550 3500 2    60   Input ~ 0
@@ -211,8 +211,6 @@ $EndComp
 Wire Wire Line
 	1900 1350 1900 1500
 Connection ~ 2150 1350
-Wire Wire Line
-	2150 1500 2150 1350
 $Comp
 L GND #PWR015
 U 1 1 55E3966E
@@ -227,8 +225,6 @@ $EndComp
 Wire Wire Line
 	1900 1800 1900 1900
 Connection ~ 2150 1900
-Wire Wire Line
-	2150 1800 2150 1900
 Wire Wire Line
 	5550 4850 5350 4850
 $Comp
@@ -366,7 +362,7 @@ F 3 "" H 3150 2800 60  0000 C CNN
 	-1   0    0    1   
 $EndComp
 Wire Wire Line
-	3450 2950 3150 2950
+	2600 2950 3450 2950
 Wire Wire Line
 	3150 2950 3150 2900
 Wire Wire Line
@@ -591,4 +587,18 @@ Wire Wire Line
 	8400 4100 8400 3900
 Wire Wire Line
 	8650 4100 8650 4000
+$Comp
+L GND #PWR?
+U 1 1 570C19F6
+P 2600 3300
+F 0 "#PWR?" H 2600 3050 50  0001 C CNN
+F 1 "GND" H 2600 3150 50  0000 C CNN
+F 2 "" H 2600 3300 60  0000 C CNN
+F 3 "" H 2600 3300 60  0000 C CNN
+	1    2600 3300
+	1    0    0    -1  
+$EndComp
+Connection ~ 3150 2950
+Wire Wire Line
+	2600 3300 2600 3250
 $EndSCHEMATC
