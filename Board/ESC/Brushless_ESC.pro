@@ -1,4 +1,4 @@
-update=02.04.2016 01:23:44
+update=16.04.2016 18:22:08
 version=1
 last_client=kicad
 [pcbnew]
@@ -33,8 +33,6 @@ NetFmtName=
 SpiceForceRefPrefix=0
 SpiceUseNetNumbers=0
 LabSize=60
-[general]
-version=1
 [eeschema]
 version=1
 LibDir=
@@ -148,3 +146,5 @@ LibName106=C:/Program Files/KiCad/share/kicad/library/Zilog
 LibName107=D:/Eigene Dateien/Dokumente/Projekte/KiCad/Kicad_Lib/converted/crystal
 LibName108=D:/Eigene Dateien/Dokumente/Projekte/KiCad/Kicad_Lib/converted/crystal-epson
 LibName109=D:/Eigene Dateien/Dokumente/Projekte/KiCad/tle4267
+[general]
+version=1
