@@ -293,12 +293,6 @@
     <Compile Include="drivers\PWM\PWM.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="drivers\SPI\SPI_slave.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <None Include="drivers\SPI\SPI_slave.h">
-      <SubType>compile</SubType>
-    </None>
     <Compile Include="Filter\MovingAvgFilter.c">
       <SubType>compile</SubType>
     </Compile>
@@ -338,7 +332,7 @@
     <Compile Include="SoundData.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="SPI_Handler.c">
+    <Compile Include="I2C_Handler.c">
       <SubType>compile</SubType>
     </Compile>
   </ItemGroup>
@@ -348,7 +342,6 @@
     <Folder Include="drivers\I2C" />
     <Folder Include="drivers\Timer" />
     <Folder Include="drivers\ACP" />
-    <Folder Include="drivers\SPI" />
     <Folder Include="drivers\PWM" />
     <Folder Include="LED" />
     <Folder Include="Filter" />

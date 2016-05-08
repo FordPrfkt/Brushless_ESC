@@ -1,6 +1,6 @@
 /*!
-***     \file	  BLDC_SPI_Hdlr.c
-***     \ingroup  BLDC_SPI_Hdlr
+***     \file	  BLDC_I2C_Hdlr.c
+***     \ingroup  BLDC_I2C_Hdlr
 ***     \author   Daniel
 ***     \date	  9/27/2015 10:37:02 PM
 ***     \brief    TODO
@@ -16,7 +16,7 @@
 #include <avr/sfr_defs.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
-#include "drivers/SPI/SPI_slave.h"
+#include "drivers/I2C/I2C_slave.h"
 #include "BLDC/BLDC.h"
 #include "ServoInput/ServoInput.h"
 #include "MotorController.h"
@@ -42,7 +42,7 @@ uint8_t tempU8;
 /* -----------------------------------------------------
  * --               Public functions                  --
  * ----------------------------------------------------- */
-bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen)
+bool I2C_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen)
 {
 	bool result = false;
 	volatile BLDC_Status_t *bldcStatus_p;
@@ -51,18 +51,18 @@ bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen)
         
 	switch (cmd)
 	{
-		case SPI_CMD_TO_FBL:
+		case I2C_CMD_TO_FBL:
 		/* FBL Byte setzen, Reset  */
 		if (bldcStatus_p->curState == BLDC_STATE_STOP)
 		{
         }            
 		break;
 		
-		case SPI_CMD_ARM:
-        MC_ArmSPI();
+		case I2C_CMD_ARM:
+        MC_ArmI2C();
 		break;
 			
-		case SPI_CMD_SAVE_CONFIG:
+		case I2C_CMD_SAVE_CONFIG:
 		if (bldcStatus_p->curState != BLDC_STATE_STOP)
 		{
 /*			bldc_WriteConfigData();*/
@@ -70,41 +70,41 @@ bool SPI_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen)
 		}
 		break;
 
-		case SPI_CMD_SET_CONFIG:
+		case I2C_CMD_SET_CONFIG:
 		if (bldcStatus_p->curState == BLDC_STATE_STOP)
 		{
 			
 		}
 		break;
 
-		case SPI_CMD_SET_THROTTLE:
+		case I2C_CMD_SET_THROTTLE:
         if (1 == paramLen)
         {
-            MC_SetThrottleValue_SPI(((uint8_t*)param)[0]);            
+            MC_SetThrottleValue_I2C(((uint8_t*)param)[0]);            
         }
 		break;
 
-		case SPI_CMD_GET_THROTTLE:
+		case I2C_CMD_GET_THROTTLE:
 		result = true;
         tempU8 = MC_GetThrottle();
-        SPI_SetTransmitBuffer(sizeof(uint8_t), (void*)&tempU8);
+        I2C_SetTransmitBuffer(sizeof(uint8_t), (void*)&tempU8);
 		break;
 				
-		case SPI_CMD_GET_PPM:
+		case I2C_CMD_GET_PPM:
 		result = true;
         tempU16 = SVI_GetPulseDuration();
-		SPI_SetTransmitBuffer(sizeof(uint16_t), (void*)&tempU16);
+		I2C_SetTransmitBuffer(sizeof(uint16_t), (void*)&tempU16);
 		break;
 		
-		case SPI_CMD_GET_STATUS:
+		case I2C_CMD_GET_STATUS:
 		result = true;
-		SPI_SetTransmitBuffer(sizeof(BLDC_Status_t), (void*)bldcStatus_p);
+		I2C_SetTransmitBuffer(sizeof(BLDC_Status_t), (void*)bldcStatus_p);
 		break;
 		
-		case SPI_CMD_GET_CONFIG:
+		case I2C_CMD_GET_CONFIG:
 		if (bldcStatus_p->curState == BLDC_STATE_STOP)
 		{
-			SPI_SetTransmitBuffer(sizeof(BLDC_Config_t), (void*)BLDC_GetConfig());
+			I2C_SetTransmitBuffer(sizeof(BLDC_Config_t), (void*)BLDC_GetConfig());
             result = true;
 		}
 		break;

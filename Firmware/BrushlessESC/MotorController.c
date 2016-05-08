@@ -31,7 +31,7 @@
 /*=============================================================================
 =======                VARIABLES & MESSAGES & RESSOURCEN                =======
 =============================================================================*/
-static enum {MC_PPM_INPUT, MC_SPI_INPUT} mc_Input;
+static enum {MC_PPM_INPUT, MC_I2C_INPUT} mc_Input;
 static MC_State_t mc_State;
 static bool noRunYet;
 static uint16_t temp1, temp2, temp3;
@@ -92,20 +92,20 @@ void MC_Init(void)
     SVI_Start();
 }
 
-void MC_SetThrottleValue_SPI(uint8_t throttleValue)
+void MC_SetThrottleValue_I2C(uint8_t throttleValue)
 {
-    if (MC_SPI_INPUT == mc_Input)
+    if (MC_I2C_INPUT == mc_Input)
     {
         mc_ThrottleVal = throttleValue;
         mc_ThrottleTimeoutCtr = 0;
     }
 }
 
-void MC_ArmSPI(void)
+void MC_ArmI2C(void)
 {
     if ((MC_PPM_INPUT == mc_Input) && ((MC_STATE_DISARMED == mc_State)||(MC_STATE_ARMED == mc_State)))
     {
-        mc_Input = MC_SPI_INPUT;
+        mc_Input = MC_I2C_INPUT;
         mc_State = MC_STATE_ARMED;
     }
 }
@@ -128,7 +128,7 @@ void MC_Cyclic_1ms(void)
     
     switch (mc_Input)
     {
-        case MC_SPI_INPUT:        
+        case MC_I2C_INPUT:        
         if (mc_ConfigData.throttleTimeout <= mc_ThrottleTimeoutCtr)
         {
             mc_ThrottleVal = UINT8_MAX;
