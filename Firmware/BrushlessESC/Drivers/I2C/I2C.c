@@ -22,6 +22,7 @@
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
  =============================================================================*/
 #define I2C_RECV_BUFFER_LEN 10
+#define I2C_SLAVE_ADDRESS (0x42)
 
 /*=============================================================================
  =======                       CONSTANTS  &  TYPES                       =======
@@ -51,6 +52,12 @@ extern bool I2C_Cmd_Callback(uint8_t cmd, volatile void *param, uint8_t paramLen
  * ----------------------------------------------------- */
 void I2C_SlaveInit(void)
 {
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    {
+        TWAR = I2C_SLAVE_ADDRESS;
+        TWCR &= ~(_BV(TWSTA)|_BV(TWSTO));
+        TWCR = _BV(TWEN)|_BV(TWEA)|_BV(TWIE)|_BV(TWINT);
+    }
 }
 
 void I2C_SetTransmitBuffer(uint8_t bufLen, void *data)
@@ -74,8 +81,21 @@ uint8_t i2c_GetCmdIndex(uint8_t cmd)
     return ctr;
 }
 
-ISR(I2C_STC_vect, ISR_NOBLOCK)
+ISR(TWI_vect, ISR_NOBLOCK)
 {
+    switch (TW_STATUS)
+    {
+        case TW_SR_SLA_ACK:
+        break;
+        
+        case TW_SR_DATA_ACK:
+        break;
+        
+        case TW_ST_SLA_ACK:
+        case TW_ST_DATA_ACK:
+        break;    
+    }
+    
     uint8_t cmdIndex = I2C_NUM_CMDS;
 
     if (false == i2c_CmdActive)
