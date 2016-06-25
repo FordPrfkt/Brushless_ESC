@@ -76,7 +76,7 @@ void MC_Init(void)
         MCUSR |= WDRF;
     }
         
-    if ((MCUSR & WDRF) == BORF)
+    if ((MCUSR & BORF) == BORF)
     {
         /* Brownout Reset */
         mc_SetError(MC_ERROR_BROWNOUT_RESET, true);
