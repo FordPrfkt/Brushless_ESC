@@ -16,8 +16,6 @@ drivers\Timer\Timer1.c
 
 drivers\PWM\PWM.c
 
-drivers\SPI\SPI_slave.c
-
 Filter\MovingAvgFilter.c
 
 LED\LED.c
@@ -30,5 +28,7 @@ PID\PID_Controller.c
 
 ServoInput\ServoInput.c
 
-SPI_Handler.c
+SoundData.c
+
+I2C_Handler.c
 
