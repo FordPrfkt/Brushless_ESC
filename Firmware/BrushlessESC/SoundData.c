@@ -10,6 +10,8 @@
 /*=============================================================================
  =======                            INCLUDES                             =======
  =============================================================================*/
+#include <stddef.h>
+#include <stdint.h>
 #include "SoundData.h"
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
@@ -35,7 +37,7 @@ uint8_t SND_GetSoundLength(SND_SoundList_t soundId)
 	return 0;
 }
 
-SND_SoundNote_s* SND_GetNote(SND_SoundList_t soundId, uint8_t note)
+SND_SoundNote_t* SND_GetNote(SND_SoundList_t soundId, uint8_t note)
 {
 	return NULL;	
 }

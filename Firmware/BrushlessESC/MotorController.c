@@ -92,7 +92,7 @@ void MC_Init(void)
     SVI_Start();
 }
 
-void MC_SetThrottleValue_I2C(uint8_t throttleValue)
+void MC_SetThrottleValue_TWI(uint8_t throttleValue)
 {
     if (MC_I2C_INPUT == mc_Input)
     {
@@ -101,13 +101,18 @@ void MC_SetThrottleValue_I2C(uint8_t throttleValue)
     }
 }
 
-void MC_ArmI2C(void)
+void MC_ArmTWI(void)
 {
     if ((MC_PPM_INPUT == mc_Input) && ((MC_STATE_DISARMED == mc_State)||(MC_STATE_ARMED == mc_State)))
     {
         mc_Input = MC_I2C_INPUT;
         mc_State = MC_STATE_ARMED;
     }
+}
+
+bool MC_GetArmed(void)
+{
+    return ((MC_STATE_ARMED == mc_State) || (MC_STATE_RUNNING == mc_State)) ? true:false;
 }
 
 void MC_GetErrorMemory(uint8_t errorMem[], uint8_t *lastError)

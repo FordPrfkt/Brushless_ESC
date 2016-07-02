@@ -35,7 +35,7 @@ LINKER_SCRIPT_DEP:=
 SUBDIRS :=  \
 ../drivers \
 ../drivers/ADC \
-../drivers/I2C \
+../drivers/TWI \
 ../drivers/Timer \
 ../drivers/ACP \
 ../drivers/PWM \
@@ -53,9 +53,9 @@ C_SRCS +=  \
 ../config/MotorController_config.c \
 ../drivers/ACP/ACP.c \
 ../drivers/ADC/ADC.c \
-../drivers/I2C/I2C.c \
 ../drivers/Timer/Timer1.c \
 ../drivers/PWM/PWM.c \
+../drivers/TWI/TWI_slave.c \
 ../Filter/MovingAvgFilter.c \
 ../LED/LED.c \
 ../main.c \
@@ -63,7 +63,7 @@ C_SRCS +=  \
 ../PID/PID_Controller.c \
 ../ServoInput/ServoInput.c \
 ../SoundData.c \
-../I2C_Handler.c
+../TWI_Handler.c
 
 
 PREPROCESSING_SRCS += 
@@ -77,9 +77,9 @@ BLDC/BLDC.o \
 config/MotorController_config.o \
 drivers/ACP/ACP.o \
 drivers/ADC/ADC.o \
-drivers/I2C/I2C.o \
 drivers/Timer/Timer1.o \
 drivers/PWM/PWM.o \
+drivers/TWI/TWI_slave.o \
 Filter/MovingAvgFilter.o \
 LED/LED.o \
 main.o \
@@ -87,16 +87,16 @@ MotorController.o \
 PID/PID_Controller.o \
 ServoInput/ServoInput.o \
 SoundData.o \
-I2C_Handler.o
+TWI_Handler.o
 
 OBJS_AS_ARGS +=  \
 BLDC/BLDC.o \
 config/MotorController_config.o \
 drivers/ACP/ACP.o \
 drivers/ADC/ADC.o \
-drivers/I2C/I2C.o \
 drivers/Timer/Timer1.o \
 drivers/PWM/PWM.o \
+drivers/TWI/TWI_slave.o \
 Filter/MovingAvgFilter.o \
 LED/LED.o \
 main.o \
@@ -104,16 +104,16 @@ MotorController.o \
 PID/PID_Controller.o \
 ServoInput/ServoInput.o \
 SoundData.o \
-I2C_Handler.o
+TWI_Handler.o
 
 C_DEPS +=  \
 BLDC/BLDC.d \
 config/MotorController_config.d \
 drivers/ACP/ACP.d \
 drivers/ADC/ADC.d \
-drivers/I2C/I2C.d \
 drivers/Timer/Timer1.d \
 drivers/PWM/PWM.d \
+drivers/TWI/TWI_slave.d \
 Filter/MovingAvgFilter.d \
 LED/LED.d \
 main.d \
@@ -121,16 +121,16 @@ MotorController.d \
 PID/PID_Controller.d \
 ServoInput/ServoInput.d \
 SoundData.d \
-I2C_Handler.d
+TWI_Handler.d
 
 C_DEPS_AS_ARGS +=  \
 BLDC/BLDC.d \
 config/MotorController_config.d \
 drivers/ACP/ACP.d \
 drivers/ADC/ADC.d \
-drivers/I2C/I2C.d \
 drivers/Timer/Timer1.d \
 drivers/PWM/PWM.d \
+drivers/TWI/TWI_slave.d \
 Filter/MovingAvgFilter.d \
 LED/LED.d \
 main.d \
@@ -138,7 +138,7 @@ MotorController.d \
 PID/PID_Controller.d \
 ServoInput/ServoInput.d \
 SoundData.d \
-I2C_Handler.d
+TWI_Handler.d
 
 OUTPUT_FILE_PATH +=BrushlessESC.elf
 
@@ -213,13 +213,6 @@ drivers/ADC/%.o: ../drivers/ADC/%.c
 	@echo Finished building: $<
 	
 
-drivers/I2C/%.o: ../drivers/I2C/%.c
-	@echo Building file: $<
-	@echo Invoking: AVR/GNU C Compiler : 4.9.2
-	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG -DF_CPU=16000000 -DSER_INTERFACE=SPI  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.106\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega88pa -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.106\gcc\dev\atmega88pa" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
-	@echo Finished building: $<
-	
-
 drivers/Timer/%.o: ../drivers/Timer/%.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 4.9.2
@@ -228,6 +221,13 @@ drivers/Timer/%.o: ../drivers/Timer/%.c
 	
 
 drivers/PWM/%.o: ../drivers/PWM/%.c
+	@echo Building file: $<
+	@echo Invoking: AVR/GNU C Compiler : 4.9.2
+	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG -DF_CPU=16000000 -DSER_INTERFACE=SPI  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.106\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega88pa -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.106\gcc\dev\atmega88pa" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
+	@echo Finished building: $<
+	
+
+drivers/TWI/%.o: ../drivers/TWI/%.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 4.9.2
 	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG -DF_CPU=16000000 -DSER_INTERFACE=SPI  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.106\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega88pa -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.0.106\gcc\dev\atmega88pa" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 

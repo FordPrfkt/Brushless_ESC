@@ -54,8 +54,9 @@ typedef enum MC_Error_e
 =============================================================================*/
 void MC_Init(void);
 void MC_Cyclic_1ms(void);
-void MC_SetThrottleValue_I2C(uint8_t throttleInput);
-void MC_ArmI2C(void);
+void MC_SetThrottleValue_TWI(uint8_t throttleInput);
+void MC_ArmTWI(void);
+bool MC_GetArmed(void);
 uint8_t MC_GetThrottle(void);
 void MC_GetErrorMemory(uint8_t errorMem[], uint8_t *lastError);
 

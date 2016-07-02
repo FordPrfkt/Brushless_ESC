@@ -21,11 +21,11 @@
 #include "drivers/ADC/ADC.h"
 #include "drivers/Timer/Timer1.h"
 #include "drivers/PWM/PWM.h"
-#include "drivers/SPI/SPI_slave.h"
 #include "ServoInput/ServoInput.h"
 #include "LED/LED.h"
 #include "BLDC/BLDC.h"
 #include "MotorController.h"
+#include "TWI_Handler.h"
 
 /*=============================================================================
  =======               DEFINES & MACROS FOR GENERAL PURPOSE              =======
@@ -56,7 +56,7 @@ int main(void)
 	ADC_Init();
     ADC_SelectReference(ADC_REF_AVCC);
 	PWM_Init();
-	SPI_SlaveInit();
+	TWI_Init();
 	TMR1_Init(0);
     LED_Init();
 	SVI_Init();
@@ -79,6 +79,7 @@ int main(void)
 		    BLDC_Mainfunction();
 		    MC_Cyclic_1ms();
 		    LED_Cyclic_1ms();
+            TWI_MainLoop();
             wdt_reset();
         }            
 	} while (1);

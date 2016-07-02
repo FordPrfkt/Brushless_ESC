@@ -50,7 +50,7 @@ typedef enum SND_SoundList_e
 =======                              EXPORTS                            =======
 =============================================================================*/
 uint8_t SND_GetSoundLength(SND_SoundList_t soundId);
-SND_SoundNote_s* SND_GetNote(SND_SoundList_t soundId, uint8_t note);
+SND_SoundNote_t* SND_GetNote(SND_SoundList_t soundId, uint8_t note);
 
 /* end of storage class specifier if used with C++ */
 #ifdef  __cplusplus
